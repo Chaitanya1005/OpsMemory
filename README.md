@@ -8,6 +8,8 @@
 
 Incident knowledge is lost between incidents. The engineer who fixed last quarter's outage knew a crucial constraint, for example that the shared database allows 200 connections and each service may use 80. That fact lived in their head or in a chat thread. When a different service has the same class of failure, responders and AI assistants start from scratch and guess values that may be unsafe.
 
+**Persona.** Priya is an on-call SRE at a mid-size e-commerce company. Three months ago a colleague fixed a checkout-api outage after the DBA explained that the shared Postgres cluster allows 200 connections and each service gets a budget of 80. Tonight orders-api fails the same way during a flash sale. Priya has never seen that incident, and the logs don't mention the limit. She needs the verified fix and its constraint, not a fresh guess.
+
 ## Solution
 
 OpsMemory turns engineer-verified resolutions into durable, retrievable institutional memory:
@@ -28,7 +30,7 @@ OpsMemory turns engineer-verified resolutions into durable, retrievable institut
 | 5. Promote | On approval the resolution is written, promoted into the knowledge base, then **read back** with `knowledgebase_search`. It counts as approved only if the read-back finds it. | Writes and promotes in `knowledge` |
 | 6. Reuse | The next related incident recalls it in stage 1. | Reads `knowledge` |
 
-A rejection keeps the rejected hypothesis as an unverified observation and promotes nothing.
+A rejection keeps the rejected hypothesis as an unverified observation and promotes nothing. Any unverified observation can be **forgotten** (deleted from Meko) from the UI.
 
 ```mermaid
 flowchart LR
@@ -77,10 +79,26 @@ Meko is OpsMemory's only long-term memory, with no local substitute. If Meko is 
 | Datapack | Holds | Read by | Written by |
 |---|---|---|---|
 | `opsmemory-knowledge` | Engineer-approved, promoted resolutions | Knowledge Agent (`knowledgebase_search`); the approval read-back | Engineer approval (`conversation_create`, `memory_add`, `memory_promote`) |
-| `opsmemory-investigator` | Unverified findings and rejected hypotheses | Knowledge Agent (`memory_search`) | Investigator (`conversation_create`, `conversation_add_message`, `memory_add`); rejections |
+| `opsmemory-investigator` | Unverified findings and rejected hypotheses | Knowledge Agent (`memory_search`); forget read-back | Investigator (`conversation_create`, `conversation_add_message`, `memory_add`); rejections; forget (`memory_delete_by_id`) |
 
 - **Isolation is by datapack.** Meko's `agent_id` does not filter reads, so an app-level policy (`lib/meko/scopes.ts`) blocks each actor from datapacks it may not use *before* the call is made. For example, the Investigator cannot read either datapack; it receives history only through the Knowledge Agent's brief.
 - **Verified means promoted.** `memory_promote` moves a memory out of private memory into the knowledge base, where `knowledgebase_search` returns it tagged with its `memory_id`. That id is shown in the UI as provenance.
+
+### Meko features used, and why
+
+| Meko feature (A2) | Where | Why OpsMemory needs it |
+|---|---|---|
+| **Datapacks as scopes** | `opsmemory-knowledge` vs `opsmemory-investigator`; policy in `lib/meko/scopes.ts` | Verified knowledge and unverified agent observations must never mix. `agent_id` doesn't filter reads, so the datapack is the real trust boundary. |
+| **Recall before reasoning** | Knowledge Agent (`lib/agents/knowledge.ts`) | The org-specific constraint (200 connections, 80 per service) isn't in tonight's logs. It exists only in memory, so it must be recalled *before* the Investigator reasons. |
+| **Promotion to shared knowledge** | Engineer approval (`OpsMemory.approve`) | Promotion is the human verification step. Only promoted resolutions are labelled VERIFIED, and agents treat unpromoted observations as hints. |
+| **Sharing across agents** | The Investigator writes findings; the Knowledge Agent recalls them in later incidents | What one agent observed reaches the next investigation without the agents calling each other. Promoted knowledge is shared with every future run. |
+| **Extracted memories** | `conversation_add_message` in `recordInvestigation` | Each investigation is stored as a conversation, and Meko extracts memories from it alongside the explicit finding. OpsMemory doesn't depend on the extracted copies. |
+
+### Correct and forget (A4)
+
+- **Correct:** before approving, the engineer can edit the root cause and fix and add notes. What gets promoted is the corrected text.
+- **Forget:** any unverified observation (the Investigator's own finding, or one recalled from an earlier run) has a **Forget** button. It deletes the memory with `memory_delete_by_id`, and the UI shows "Forgotten from Meko" only after a read-back returns `not_found`.
+- **Promoted knowledge:** it can't be forgotten through Meko's API (see the feature proposal), so the UI says so instead of offering a button.
 
 ### Meko ON vs Meko OFF
 
@@ -187,9 +205,9 @@ Details are in [docs/MEKO_USAGE.md](docs/MEKO_USAGE.md).
 ## Known limitations
 
 - **No authentication.** Anyone who can reach the server can approve, and approvals promote permanently. Run it locally only.
-- **Promotion cannot be undone through Meko's API.** Correcting or retracting a promoted resolution requires the Meko portal.
+- **Promotion cannot be undone through Meko's API.** Correcting or retracting a promoted resolution requires the Meko portal. Forget works only for unverified observations, and not for memories Meko auto-extracted from investigation conversations, which the UI doesn't list.
 - **Not exactly-once.** Approval writes can still duplicate in two edge cases:
-  - Reconciliation relies on `memory_get_all`, which returns one page of about 20 rows. If either listing is larger than that, an unknown outcome stays `needs_reconciliation` instead of guessing.
+  - Reconciliation lists `memory_get_all` with 100-row pages and checks only the first page. If either listing is larger than that, an unknown outcome stays `needs_reconciliation` instead of guessing.
   - An uncertain `conversation_create` can leave an empty orphan conversation, which is harmless.
 - **Investigator writes and rejections are not reconciled.** They are not retried after an ambiguous failure, so they may be missing, but they never duplicate. Their write IDs are not read back.
 - **Progress during a run is coarse.** The backend has no streaming, so the in-progress lifecycle shows only Meko events recorded so far. Reasoning is reported when the run returns.

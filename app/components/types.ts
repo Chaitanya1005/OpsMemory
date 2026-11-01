@@ -14,6 +14,8 @@ export interface Investigation extends Omit<InvestigationRow, "incident" | "know
   decision: ApprovalDecision | RejectionDecision | null;
   mekoCalls: number;
   events: StoredEvent[];
+  /** Memory ids confirmed deleted from Meko (delete succeeded and read-back returned not_found). */
+  forgotten: string[];
 }
 
 export interface Status {

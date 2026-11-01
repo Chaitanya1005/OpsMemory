@@ -35,6 +35,7 @@ export function Dashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [running, setRunning] = useState<RunningState | null>(null);
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
+  const [forgetting, setForgetting] = useState<string | null>(null);
   const [error, setError] = useState<{ context: string; err: ApiError } | null>(null);
   const lastEventTs = useRef<string>("");
 
@@ -115,6 +116,20 @@ export function Dashboard() {
     }
   };
 
+  const forget = async (memoryId: string) => {
+    if (!selected) return;
+    setError(null);
+    setForgetting(memoryId);
+    try {
+      await api(`/api/investigations/${selected.id}/forget`, { method: "POST", body: JSON.stringify({ memoryId }) });
+      await refreshInvestigations();
+    } catch (err) {
+      setError({ context: "Forget failed", err: err as ApiError });
+    } finally {
+      setForgetting(null);
+    }
+  };
+
   const scenario = scenarios.find((s) => s.id === scenarioId) ?? null;
   const selectedScenario = selected ? scenarios.find((s) => s.title === selected.incident.title) ?? null : null;
 
@@ -181,8 +196,8 @@ export function Dashboard() {
                 <ErrorBox title={`Investigation ${selected.id} failed`}>{(selected.result as { error: string }).error}</ErrorBox>
               ) : (
                 <>
-                  <RecalledMemory investigation={selected} />
-                  <InvestigationView investigation={selected} />
+                  <RecalledMemory investigation={selected} forgetting={forgetting} onForget={forget} />
+                  <InvestigationView investigation={selected} forgetting={forgetting} onForget={forget} />
                   <ApprovalPanel
                     investigation={selected}
                     scenario={selectedScenario}

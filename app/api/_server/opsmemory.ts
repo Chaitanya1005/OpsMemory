@@ -25,11 +25,13 @@ export function serialized<T>(fn: (app: OpsMemory) => Promise<T>): Promise<T> {
 export interface InvestigationDto extends InvestigationRow {
   mekoCalls: number;
   events: StoredEvent[];
+  /** Memory ids confirmed deleted from Meko (from any investigation), derived from recorded events. */
+  forgotten: string[];
 }
 
 export function toDto(app: OpsMemory, row: InvestigationRow): InvestigationDto {
   const events = app.store.events(row.id);
-  return { ...row, mekoCalls: events.length, events };
+  return { ...row, mekoCalls: events.length, events, forgotten: forgottenIds(app) };
 }
 
 /** Maps workflow failures to an honest JSON error; Meko failures keep their code and operation. */
@@ -45,4 +47,17 @@ export function errorResponse(err: unknown): Response {
   const message = err instanceof Error ? err.message : String(err);
   const isLlm = err instanceof Error && err.name === "LlmError";
   return Response.json({ error: message, source: isLlm ? "llm" : "app" }, { status: isLlm ? 502 : 400 });
+}
+
+/** A memory counts as forgotten only if a delete succeeded and the read-back after it returned not_found. */
+function forgottenIds(app: OpsMemory): string[] {
+  const all = app.store.events();
+  const ids = new Set<string>();
+  all.forEach((e, i) => {
+    if (e.op !== "memory_delete_by_id") return;
+    const id = (e.request as { memory_id?: string }).memory_id;
+    const check = all.slice(i + 1).find((x) => x.op === "memory_get_by_id" && (x.request as { memory_id?: string }).memory_id === id);
+    if (id && check && !check.ok && (check.error as { code?: string } | null)?.code === "not_found") ids.add(id);
+  });
+  return [...ids];
 }

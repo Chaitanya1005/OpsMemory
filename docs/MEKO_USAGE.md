@@ -38,7 +38,7 @@ The access policy is enforced in code (`lib/meko/scopes.ts` `ACCESS`) before any
 |---|---|---|
 | Knowledge Agent | `knowledge` (`knowledgebase_search`), `investigator` (`memory_search`) | nothing |
 | Investigator | nothing (gets history only through the Knowledge Agent's brief) | `investigator` |
-| Engineer (approve/reject) | `knowledge` (read-back, reconciliation listings) | `knowledge` (approve), `investigator` (reject) |
+| Engineer (approve/reject/forget) | `knowledge` (read-back, reconciliation listings), `investigator` (confirming a forget) | `knowledge` (approve), `investigator` (reject, forget via `memory_delete_by_id`) |
 
 **Historical knowledge is retrieved** by the Knowledge Agent:
 - `knowledgebase_search` (limit 8) on `knowledge`, which returns promoted resolutions tagged `source=memory` with their `memory_id`;

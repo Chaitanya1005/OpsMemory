@@ -1,6 +1,7 @@
 "use client";
 
 import { isComplete, type Investigation } from "./types";
+import { ForgetControl } from "./RecalledMemory";
 import { Chip, Mono, Panel, SOURCE, fmtMs, shortId } from "./ui";
 
 const BASIS = {
@@ -9,7 +10,9 @@ const BASIS = {
   inconclusive: { tone: "serious" as const, icon: "?", label: "Inconclusive" },
 };
 
-export function InvestigationView({ investigation }: { investigation: Investigation }) {
+export function InvestigationView({ investigation, forgetting, onForget }: {
+  investigation: Investigation; forgetting: string | null; onForget: (memoryId: string) => void;
+}) {
   if (!isComplete(investigation)) return null;
   const { outcome, mekoWrites, timings } = investigation.result;
   const inv = outcome.investigation;
@@ -102,6 +105,9 @@ export function InvestigationView({ investigation }: { investigation: Investigat
         {mekoWrites === null && <Chip icon="○">No Meko writes (OFF)</Chip>}
         {mekoWrites && "error" in mekoWrites && <Chip tone="critical" icon="✕">Meko write failed: {mekoWrites.error}</Chip>}
         {mekoWrites && "conversationId" in mekoWrites && <Chip tone="warning" icon="◌">Stored as unverified finding <Mono>{shortId(mekoWrites.findingMemoryIds[0])}</Mono></Chip>}
+        {mekoWrites && "conversationId" in mekoWrites && mekoWrites.findingMemoryIds[0] && (
+          <ForgetControl memoryId={mekoWrites.findingMemoryIds[0]} forgotten={investigation.forgotten ?? []} forgetting={forgetting} onForget={onForget} />
+        )}
         <span className="ml-auto">{outcome.llm.model} · reasoning {fmtMs(timings.investigatorMs)} · total {fmtMs(timings.totalMs)}</span>
       </div>
       {outcome.integrityWarnings.length > 0 && (

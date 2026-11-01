@@ -21,8 +21,9 @@ export const ACCESS: Record<MekoActor, { read: DatapackRole[]; write: DatapackRo
   "knowledge-agent": { read: ["knowledge", "investigator"], write: [] },
   // Writes only its own working context. Receives history only via the Knowledge Agent's brief.
   investigator: { read: [], write: ["investigator"] },
-  // Human approval: writes and promotes into shared knowledge; records rejections as observations.
-  engineer: { read: ["knowledge"], write: ["knowledge", "investigator"] },
+  // Human approval: writes and promotes into shared knowledge; records rejections as observations;
+  // forgets unverified observations (reads investigator only to confirm a delete).
+  engineer: { read: ["knowledge", "investigator"], write: ["knowledge", "investigator"] },
   system: { read: ["knowledge", "investigator"], write: ["knowledge", "investigator"] },
 };
 

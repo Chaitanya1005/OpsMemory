@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { isComplete, type Investigation, type RetrievedItem } from "./types";
-import { Chip, KIND, Mono, Panel, fmtMs } from "./ui";
+import { Chip, KIND, Mono, Panel, Spinner, fmtMs } from "./ui";
 
-export function RecalledMemory({ investigation }: { investigation: Investigation }) {
+export function RecalledMemory({ investigation, forgetting, onForget }: {
+  investigation: Investigation; forgetting: string | null; onForget: (memoryId: string) => void;
+}) {
   const [showAll, setShowAll] = useState(false);
   if (!isComplete(investigation)) return null;
   const k = investigation.knowledge;
@@ -45,6 +47,9 @@ export function RecalledMemory({ investigation }: { investigation: Investigation
                   <Chip tone={kind.tone} icon={kind.icon}>{kind.label}</Chip>
                   <Chip tone={rel ? "good" : "neutral"} icon={rel ? "✓" : "–"}>{rel ? "Relevant" : "Not relevant"}</Chip>
                   {used && <Chip tone="memory" icon="↳">Used by Investigator</Chip>}
+                  {item.kind === "unverified_observation" && item.source.memoryId && (
+                    <ForgetControl memoryId={item.source.memoryId} forgotten={investigation.forgotten ?? []} forgetting={forgetting} onForget={onForget} />
+                  )}
                 </div>
                 <p className="mt-2 text-[13px] leading-relaxed text-ink">{item.text}</p>
                 <dl className="mt-2.5 grid grid-cols-1 gap-x-6 gap-y-1 text-[12px] sm:grid-cols-[auto_1fr]">
@@ -75,6 +80,23 @@ export function RecalledMemory({ investigation }: { investigation: Investigation
       {k.discardedRefs.length > 0 && <p className="mt-3 text-[12px] text-ink-3">Discarded references the model invented: {k.discardedRefs.join(", ")}</p>}
       <p className="mt-3 text-[12px] leading-relaxed text-ink-3">{k.summary}</p>
     </Panel>
+  );
+}
+
+/** Unverified observations can be deleted from Meko; the chip appears only after the backend confirmed the delete. */
+export function ForgetControl({ memoryId, forgotten, forgetting, onForget }: {
+  memoryId: string; forgotten: string[]; forgetting: string | null; onForget: (memoryId: string) => void;
+}) {
+  if (forgotten.includes(memoryId)) return <Chip icon="⌫">Forgotten from Meko</Chip>;
+  return (
+    <button
+      onClick={() => onForget(memoryId)}
+      disabled={forgetting !== null}
+      title="Delete this unverified observation from Meko so future investigations no longer recall it"
+      className="ml-auto flex items-center gap-1.5 rounded-md border border-line px-2 py-0.5 text-[11.5px] font-medium text-ink-2 hover:bg-surface-3 hover:text-ink disabled:opacity-50"
+    >
+      {forgetting === memoryId ? <><Spinner /> Forgetting…</> : "Forget"}
+    </button>
   );
 }
 

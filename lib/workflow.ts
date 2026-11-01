@@ -252,7 +252,7 @@ export class OpsMemory {
         if (promoted.length && !unpromoted.length) save({ memoryIds: [...new Set([...d.memoryIds, ...promoted])], promotionConfirmed: true });
         else if (unpromoted.length) save({ memoryIds: [...new Set([...d.memoryIds, ...unpromoted, ...promoted])], promotionConfirmed: false });
         else if (d.memoryIds.length === 0 && !found.complete) {
-          stop("reconcile", "inconclusive", "Meko's listings are larger than one page, so an earlier memory_add cannot be ruled out; check the knowledge datapack in the Meko portal", true);
+          stop("reconcile", "inconclusive", "Meko's listings exceed one 100-row page, so an earlier memory_add cannot be ruled out; check the knowledge datapack in the Meko portal", true);
         } else if (d.memoryIds.length > 0) {
           stop("reconcile", "missing", `Recorded memory ${d.memoryIds.join(", ")} is in neither the personal nor the promoted listing`, true);
         }
@@ -302,7 +302,7 @@ export class OpsMemory {
   /** Approval memories written in one approval conversation, split by whether Meko lists them as promoted. */
   private async findApprovalMemories(meko: MekoClient, datapackId: string, conversationId: string): Promise<{ promoted: string[]; unpromoted: string[]; complete: boolean }> {
     const trace = conversationId.replaceAll("-", "");
-    const args = { agent_id: APPROVALS_AGENT_ID, conversation_id: trace, datapack_id: datapackId };
+    const args = { agent_id: APPROVALS_AGENT_ID, conversation_id: trace, datapack_id: datapackId, page_size: 100 };
     const mine = await meko.call("engineer", "memory_get_all", args, PersonalListing);
     const shared = await meko.call("engineer", "memory_get_all", { ...args, promoted: true }, PromotedListing);
     const inConv = (r: z.infer<typeof MemoryRow>) => (r.conversation_id ?? "").replaceAll("-", "").toLowerCase() === trace.toLowerCase();
@@ -311,6 +311,48 @@ export class OpsMemory {
       unpromoted: mine.memories.filter(inConv).map((r) => r.id),
       complete: mine.total <= mine.memories.length && shared.total <= shared.promoted_memories.length,
     };
+  }
+
+  /**
+   * Forget an unverified observation: the Investigator's own finding for this
+   * investigation, or an unverified item it recalled. Deletes it from the
+   * investigator datapack and confirms with a read-back that it is gone.
+   * Verified (promoted) knowledge cannot be forgotten through Meko's API (FRICTION_LOG #14).
+   */
+  async forget(id: string, memoryId: string): Promise<{ memoryId: string; forgottenAt: string }> {
+    const row = this.store.getInvestigation(id);
+    if (!row) throw new Error(`No investigation ${id}`);
+    if (row.mode !== "on" || !row.result || !("outcome" in (row.result as object))) throw new Error(`Investigation ${id} has no Meko observations to forget`);
+    const writes = (row.result as InvestigationResult).mekoWrites;
+    const own = writes && "findingMemoryIds" in writes ? writes.findingMemoryIds : [];
+    const recalled = ((row.knowledge as KnowledgeBrief | null)?.retrieved ?? [])
+      .filter((i) => i.kind === "unverified_observation" && i.source.datapack === "investigator" && i.source.memoryId)
+      .map((i) => i.source.memoryId!);
+    if (![...own, ...recalled].includes(memoryId)) {
+      throw new Error(`Memory ${memoryId} is not an unverified observation of investigation ${id}; verified knowledge cannot be forgotten here`);
+    }
+
+    this.currentInvestigation = id;
+    try {
+      const { meko, datapacks } = await this.meko();
+      const args = { memory_id: memoryId, conversation_id: randomBytes(16).toString("hex"), agent_id: APPROVALS_AGENT_ID, datapack_id: datapacks.investigator };
+      try {
+        await meko.call("engineer", "memory_delete_by_id", args);
+      } catch (err) {
+        // Already gone (e.g. a repeated click) is fine; the read-back below decides.
+        if (!(err instanceof MekoError && err.code === "not_found")) throw err;
+      }
+      // Read back: success means Meko no longer has it.
+      try {
+        await meko.call("engineer", "memory_get_by_id", args);
+      } catch (err) {
+        if (err instanceof MekoError && err.code === "not_found") return { memoryId, forgottenAt: new Date().toISOString() };
+        throw err;
+      }
+      throw new MekoError("still_present", `Meko still returns memory ${memoryId} after memory_delete_by_id`, "memory_get_by_id");
+    } finally {
+      this.currentInvestigation = null;
+    }
   }
 
   /** Human rejection. With Meko ON, the rejected hypothesis is kept as an unverified observation. */
