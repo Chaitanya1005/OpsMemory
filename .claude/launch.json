@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "opsmemory-rehearsal",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["MEKO_DATAPACK_PREFIX=opsmemory-e2e", "OPSMEMORY_DB=data/ui-rehearsal.db", "npx", "next", "dev", "-p", "3100"],
+      "port": 3100
+    }
+  ]
+}
