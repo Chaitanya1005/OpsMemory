@@ -71,7 +71,11 @@ export function Dashboard() {
         const fresh = await api<StoredEvent[]>(`/api/events${q}`);
         if (fresh.length) {
           lastEventTs.current = fresh.at(-1)!.ts;
-          setEvents((prev) => [...prev, ...fresh].slice(-400));
+          // `since` is inclusive, so the last event seen comes back again; keep one copy of each.
+          setEvents((prev) => {
+            const seen = new Set(prev.map((e) => e.id));
+            return [...prev, ...fresh.filter((e) => !seen.has(e.id))].slice(-400);
+          });
         }
       } catch {
         /* the next tick retries; errors from actions are shown separately */
@@ -190,9 +194,7 @@ export function Dashboard() {
             </div>
           )}
           {running && <RunningCard running={running} scenario={scenarios.find((x) => x.id === running.scenarioId) ?? null} events={events} />}
-          {selected && !running && (
-            <>
-              {!isComplete(selected) ? (
+          {selected && !running && (!isComplete(selected) ? (
                 <ErrorBox title={`Investigation ${selected.id} failed`}>{(selected.result as { error: string }).error}</ErrorBox>
               ) : (
                 <>
@@ -212,9 +214,7 @@ export function Dashboard() {
                     onRunOther={() => selectedScenario && investigate({ scenarioId: selectedScenario.id, mode: selected.mode === "on" ? "off" : "on", incidentRef: selected.incidentRef })}
                   />
                 </>
-              )}
-            </>
-          )}
+              ))}
         </div>
       </div>
     </div>

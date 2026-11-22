@@ -36,6 +36,7 @@ export class Store {
         error_json TEXT
       );
       CREATE INDEX IF NOT EXISTS meko_events_by_investigation ON meko_events (investigation_id, ts);
+      CREATE INDEX IF NOT EXISTS meko_events_by_ts ON meko_events (ts);
     `);
   }
 
@@ -81,13 +82,25 @@ export class Store {
   events(investigationId?: string): StoredEvent[] {
     const rows = (investigationId
       ? this.db.prepare(`SELECT * FROM meko_events WHERE investigation_id = ? ORDER BY ts`).all(investigationId)
-      : this.db.prepare(`SELECT * FROM meko_events ORDER BY ts`).all()) as Array<Record<string, string | number | null>>;
-    return rows.map((r) => ({
-      id: String(r.id), investigationId: r.investigation_id as string | null, ts: String(r.ts), actor: String(r.actor),
-      transport: String(r.transport), op: String(r.op), datapackId: r.datapack_id as string | null, ok: r.ok === 1,
-      latencyMs: Number(r.latency_ms), attempts: Number(r.attempts), request: parse(r.request_json as string),
-      response: parse(r.response_json as string | null), error: parse(r.error_json as string | null),
-    }));
+      : this.db.prepare(`SELECT * FROM meko_events ORDER BY ts`).all()) as EventRow[];
+    return rows.map(toEvent);
+  }
+
+  /**
+   * The activity feed: events at or after `since` (inclusive, so events sharing a
+   * millisecond are never skipped; callers de-duplicate by id), else the newest `limit`.
+   */
+  eventFeed(opts: { since?: string; limit: number }): StoredEvent[] {
+    const rows = (opts.since
+      ? this.db.prepare(`SELECT * FROM meko_events WHERE ts >= ? ORDER BY ts LIMIT ?`).all(opts.since, opts.limit)
+      : this.db.prepare(`SELECT * FROM (SELECT * FROM meko_events ORDER BY ts DESC LIMIT ?) ORDER BY ts`).all(opts.limit)) as EventRow[];
+    return rows.map(toEvent);
+  }
+
+  /** All events for the given operations, oldest first. */
+  eventsForOps(ops: string[]): StoredEvent[] {
+    const rows = this.db.prepare(`SELECT * FROM meko_events WHERE op IN (${ops.map(() => "?").join(", ")}) ORDER BY ts`).all(...ops) as EventRow[];
+    return rows.map(toEvent);
   }
 
   close(): void {
@@ -143,6 +156,17 @@ const INVESTIGATIONS_DDL = `CREATE TABLE IF NOT EXISTS investigations (
   created_at TEXT NOT NULL,
   decided_at TEXT
 )`;
+
+type EventRow = Record<string, string | number | null>;
+
+function toEvent(r: EventRow): StoredEvent {
+  return {
+    id: String(r.id), investigationId: r.investigation_id as string | null, ts: String(r.ts), actor: String(r.actor),
+    transport: String(r.transport), op: String(r.op), datapackId: r.datapack_id as string | null, ok: r.ok === 1,
+    latencyMs: Number(r.latency_ms), attempts: Number(r.attempts), request: parse(r.request_json as string),
+    response: parse(r.response_json as string | null), error: parse(r.error_json as string | null),
+  };
+}
 
 function toInvestigation(r: Record<string, string | null>): InvestigationRow {
   return {

@@ -107,7 +107,10 @@ async function main() {
     console.log("\n================ RECALLED MEMORY AND ITS INFLUENCE (Meko ON) ================");
     on.forEach(({ rec }, i) => {
       const item = rec.knowledge?.retrieved.find((x) => x.source.memoryId && decision.memoryIds.includes(x.source.memoryId));
-      if (!item) return console.log(`run ${i + 1}: promoted memory NOT retrieved`);
+      if (!item) {
+        console.log(`run ${i + 1}: promoted memory NOT retrieved`);
+        return;
+      }
       if (i === 0) console.log(`memory ${item.source.memoryId} (${item.source.datapack}/${item.source.tool}):\n  "${item.text}"`);
       const used = rec.result.outcome.investigation.historicalContextUsed.find((h) => h.ref === item.ref);
       console.log(`run ${i + 1}: ${item.ref} judged relevant=${rec.knowledge!.relevant.some((r) => r.ref === item.ref)}; how used: ${used ? used.how : "not cited"}`);

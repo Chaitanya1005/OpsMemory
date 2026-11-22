@@ -18,13 +18,12 @@ export function ApprovalPanel({ investigation, scenario, busy, onApprove, onReje
   const [notes, setNotes] = useState("");
   const [reason, setReason] = useState("");
 
-  // Reset the form whenever a different investigation is selected.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset only when a different investigation is selected, not when the same one refreshes.
   useEffect(() => {
     setRootCause(inv?.rootCause.statement ?? "");
     setFix(proposedFix);
     setNotes("");
     setReason("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [investigation.id]);
 
   if (!inv) return null;
@@ -59,7 +58,7 @@ export function ApprovalPanel({ investigation, scenario, busy, onApprove, onReje
       {edit && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface-2 px-3.5 py-2.5">
           <span className="text-[12.5px] text-ink-2">This scenario includes the on-call engineer&apos;s DBA-validated correction.</span>
-          <button
+          <button type="button"
             onClick={() => { setFix(edit.fix); setNotes(edit.notes); }}
             disabled={disabled}
             className="rounded-md border border-line-strong px-3 py-1.5 text-[12.5px] font-medium text-ink hover:bg-surface-3 disabled:opacity-50"
@@ -74,7 +73,7 @@ export function ApprovalPanel({ investigation, scenario, busy, onApprove, onReje
         <Field label="Resolution notes" value={notes} onChange={setNotes} rows={3} disabled={disabled} placeholder="Constraints, conditions and context future responders need" />
       </div>
       <div className="mt-4 flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-end">
-        <button
+        <button type="button"
           onClick={submit}
           disabled={disabled}
           className="flex items-center justify-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-[13.5px] font-semibold text-bg hover:opacity-90 disabled:opacity-60"
@@ -89,7 +88,7 @@ export function ApprovalPanel({ investigation, scenario, busy, onApprove, onReje
             placeholder="Reason for rejection"
             className="min-w-0 flex-1 rounded-lg border border-line bg-surface-2 px-3 py-2.5 text-[13px] text-ink placeholder:text-ink-3 focus:border-line-strong focus:outline-none"
           />
-          <button
+          <button type="button"
             onClick={() => onReject(reason)}
             disabled={disabled || !reason.trim()}
             className="flex items-center gap-2 rounded-lg border border-line-strong px-4 py-2.5 text-[13.5px] font-medium text-ink hover:bg-surface-3 disabled:opacity-50"
@@ -178,7 +177,7 @@ function Incomplete({ d, busy, onRetry }: { d: ApprovalDecision; busy: boolean; 
       </ul>
       {d.memoryIds.length > 0 && <p className="mt-2 text-[12px] text-ink-3">Memory ID <Mono>{d.memoryIds.join(", ")}</Mono> · attempt {d.attempts}</p>}
       {d.status !== "approving" && (
-        <button
+        <button type="button"
           onClick={onRetry}
           disabled={busy}
           className="mt-4 flex items-center gap-2 rounded-lg border border-line-strong px-4 py-2 text-[13px] font-medium text-ink hover:bg-surface-3 disabled:opacity-50"

@@ -1,17 +1,18 @@
 import { loadConfig } from "@/lib/config";
+import { llmSettings } from "@/lib/llm";
 import { datapackNames } from "@/lib/meko/scopes";
-import { getApp } from "../_server/opsmemory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Configuration the UI may show. Never includes keys. Does not open a Meko connection. */
+/** Configuration the UI may show. Never includes keys. Opens no Meko connection and needs no LLM key. */
 export function GET() {
   const config = loadConfig();
-  const app = getApp();
+  const llm = llmSettings();
   return Response.json({
-    model: app.llm.model,
-    provider: app.llm.id,
+    model: llm.model,
+    provider: llm.provider,
+    llmConfigured: llm.configured,
     datapackPrefix: config.datapackPrefix,
     datapacks: datapackNames(config.datapackPrefix),
     mekoConfigured: Boolean(config.mekoApiKey),

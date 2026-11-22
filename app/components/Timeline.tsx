@@ -32,7 +32,7 @@ export function Timeline({ events, selected, running }: { events: StoredEvent[];
       action={
         <div className="flex rounded-md border border-line bg-surface-2 p-0.5 text-[12px]">
           {(["run", "all"] as const).map((s) => (
-            <button key={s} onClick={() => setScope(s)} className={`rounded px-2 py-1 ${scope === s ? "bg-surface-3 text-ink" : "text-ink-3 hover:text-ink-2"}`}>
+            <button type="button" key={s} onClick={() => setScope(s)} className={`rounded px-2 py-1 ${scope === s ? "bg-surface-3 text-ink" : "text-ink-3 hover:text-ink-2"}`}>
               {s === "run" ? (running ? "This run" : "Selected") : "All"}
             </button>
           ))}
@@ -59,7 +59,7 @@ export function Timeline({ events, selected, running }: { events: StoredEvent[];
               const err = e.error as { code?: string; message?: string } | null;
               return (
                 <li key={e.id} className="row-in">
-                  <button onClick={() => setOpen(open === e.id ? null : e.id)} className="w-full rounded-md px-2 py-1.5 text-left hover:bg-surface-2" aria-expanded={open === e.id}>
+                  <button type="button" onClick={() => setOpen(open === e.id ? null : e.id)} className="w-full rounded-md px-2 py-1.5 text-left hover:bg-surface-2" aria-expanded={open === e.id}>
                     <div className="flex items-center gap-2">
                       <span className="size-2 shrink-0 rounded-full" style={{ background: a.color }} title={a.label} aria-hidden />
                       <Mono className="min-w-0 flex-1 truncate text-ink">{e.op}</Mono>

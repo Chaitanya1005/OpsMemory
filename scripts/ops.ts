@@ -73,6 +73,11 @@ async function main() {
       case "show": {
         const r = app.store.getInvestigation(args[0] ?? "");
         if (!r) throw new Error(`No investigation ${args[0]}`);
+        if (r.status === "failed") {
+          // A failed run has no outcome to print, only the error it stopped with.
+          console.log(`${r.id}  ${r.incidentRef}  Meko ${r.mode.toUpperCase()}  failed: ${(r.result as { error?: string } | null)?.error ?? "unknown error"}`);
+          break;
+        }
         printInvestigation({ ...(r as unknown as InvestigationRecord), mekoCalls: app.store.events(r.id).length });
         console.log(`\n   Decision: ${r.decision ? JSON.stringify(r.decision, null, 2) : "pending"}`);
         break;

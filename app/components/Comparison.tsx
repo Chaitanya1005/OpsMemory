@@ -16,7 +16,7 @@ export function Comparison({ selected, counterpart, running, onRunOther }: {
           <p className="max-w-xl text-[13px] text-ink-2">
             Run <Mono>{selected.incidentRef}</Mono> again with Meko {other}: same logs, same model, same instructions. Only access to Meko changes.
           </p>
-          <button
+          <button type="button"
             onClick={onRunOther}
             disabled={running !== null}
             className="flex items-center gap-2 rounded-lg border border-line-strong px-4 py-2 text-[13px] font-medium text-ink hover:bg-surface-3 disabled:opacity-50"

@@ -18,14 +18,15 @@ export function IncidentPanel({ scenarios, scenario, onScenario, mode, onMode, r
 
   return (
     <Panel kicker="1 · Incident" title="Choose an incident">
-      <div className="space-y-2" role="radiogroup" aria-label="Incident">
+      <fieldset className="space-y-2">
+        <legend className="sr-only">Incident</legend>
         {scenarios.map((s, i) => {
           const active = s.id === scenario?.id;
           return (
             <button
               key={s.id}
-              role="radio"
-              aria-checked={active}
+              type="button"
+              aria-pressed={active}
               onClick={() => onScenario(s.id)}
               disabled={running !== null}
               className={`w-full rounded-lg border px-3.5 py-3 text-left transition-colors disabled:cursor-not-allowed ${active ? "border-line-strong bg-surface-3" : "border-line bg-surface-2 hover:border-line-strong"}`}
@@ -41,19 +42,20 @@ export function IncidentPanel({ scenarios, scenario, onScenario, mode, onMode, r
             </button>
           );
         })}
-      </div>
+      </fieldset>
 
       <div className="mt-5">
         <div className="mb-2">
           <div className="text-[13px] font-medium text-ink">Meko memory</div>
           <div className="text-[12px] text-ink-3">Same incident, model and prompt either way</div>
         </div>
-        <div role="radiogroup" aria-label="Meko mode" className="grid grid-cols-2 rounded-lg border border-line bg-surface-2 p-1">
+        <fieldset className="grid grid-cols-2 rounded-lg border border-line bg-surface-2 p-1">
+          <legend className="sr-only">Meko mode</legend>
           {(["on", "off"] as const).map((m) => (
             <button
               key={m}
-              role="radio"
-              aria-checked={mode === m}
+              type="button"
+              aria-pressed={mode === m}
               onClick={() => onMode(m)}
               disabled={running !== null}
               className={`rounded-md px-3 py-2 text-[13px] font-semibold transition-colors disabled:cursor-not-allowed ${mode === m ? "bg-surface-3 text-ink shadow-[inset_0_0_0_1px_var(--border-strong)]" : "text-ink-3 hover:text-ink-2"}`}
@@ -62,7 +64,7 @@ export function IncidentPanel({ scenarios, scenario, onScenario, mode, onMode, r
               Meko {m.toUpperCase()}
             </button>
           ))}
-        </div>
+        </fieldset>
         <p className="mt-2 text-[12px] leading-relaxed text-ink-3">
           {mode === "on"
             ? "Recalls verified resolutions and prior observations from Meko before reasoning, then records the finding."
@@ -70,7 +72,7 @@ export function IncidentPanel({ scenarios, scenario, onScenario, mode, onMode, r
         </p>
       </div>
 
-      <button
+      <button type="button"
         onClick={onInvestigate}
         disabled={running !== null || !scenario}
         className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-[14px] font-semibold text-bg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"

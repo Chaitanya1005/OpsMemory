@@ -73,7 +73,7 @@ export function RecalledMemory({ investigation, forgetting, onForget }: {
         </ul>
       )}
       {k.retrieved.length > k.relevant.length && (
-        <button onClick={() => setShowAll(!showAll)} className="mt-3 text-[12.5px] font-medium text-ink-2 hover:text-ink">
+        <button type="button" onClick={() => setShowAll(!showAll)} className="mt-3 text-[12.5px] font-medium text-ink-2 hover:text-ink">
           {showAll ? "Hide" : "Show"} {k.retrieved.length - k.relevant.length} item{k.retrieved.length - k.relevant.length === 1 ? "" : "s"} judged not relevant
         </button>
       )}
@@ -89,7 +89,7 @@ export function ForgetControl({ memoryId, forgotten, forgetting, onForget }: {
 }) {
   if (forgotten.includes(memoryId)) return <Chip icon="⌫">Forgotten from Meko</Chip>;
   return (
-    <button
+    <button type="button"
       onClick={() => onForget(memoryId)}
       disabled={forgetting !== null}
       title="Delete this unverified observation from Meko so future investigations no longer recall it"

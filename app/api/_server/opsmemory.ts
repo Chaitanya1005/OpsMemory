@@ -51,7 +51,7 @@ export function errorResponse(err: unknown): Response {
 
 /** A memory counts as forgotten only if a delete succeeded and the read-back after it returned not_found. */
 function forgottenIds(app: OpsMemory): string[] {
-  const all = app.store.events();
+  const all = app.store.eventsForOps(["memory_delete_by_id", "memory_get_by_id"]);
   const ids = new Set<string>();
   all.forEach((e, i) => {
     if (e.op !== "memory_delete_by_id") return;

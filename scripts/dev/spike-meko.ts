@@ -11,8 +11,8 @@
  */
 import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
-import { MekoClient, MekoError } from "../lib/meko/client";
-import { uploadKnowledgeDocument } from "../lib/meko/documents";
+import { MekoClient, MekoError } from "../../lib/meko/client";
+import { uploadKnowledgeDocument } from "../../lib/meko/documents";
 
 const RUNTIME_DATAPACKS = ["opsmemory-knowledge", "opsmemory-investigator"] as const;
 const SPIKE_DATAPACK = "opsmemory-spike";

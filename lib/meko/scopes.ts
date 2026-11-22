@@ -58,8 +58,8 @@ export function scopePolicy(getDatapacks: () => Datapacks | null) {
 const SearchResult = z.object({ datapacks: z.array(z.object({ datapack_id: z.string(), grant: z.string() })) });
 const Created = z.object({ datapack_id: z.string() });
 
-/** Looks up both runtime datapacks by exact name, creating any that are missing. */
-export async function resolveDatapacks(meko: MekoClient, prefix: string): Promise<Datapacks> {
+/** Looks up both runtime datapacks by exact name. Missing ones are created only when `create` is set. */
+export async function resolveDatapacks(meko: MekoClient, prefix: string, opts: { create?: boolean } = {}): Promise<Datapacks> {
   const trace = randomUUID().replaceAll("-", "");
   const names = datapackNames(prefix);
   const out = {} as Datapacks;
@@ -71,8 +71,14 @@ export async function resolveDatapacks(meko: MekoClient, prefix: string): Promis
         throw new MekoError("insufficient_role", `${names[role]} grant is ${existing.grant}; promotion needs owner or maintainer`, "datapack_search");
       }
       out[role] = existing.datapack_id;
-    } else {
+    } else if (opts.create) {
       out[role] = (await meko.call("system", "datapack_create", { name: names[role], conversation_id: trace }, Created)).datapack_id;
+    } else {
+      throw new MekoError(
+        "datapack_missing",
+        `Datapack ${names[role]} does not exist. Check MEKO_DATAPACK_PREFIX, or set MEKO_CREATE_DATAPACKS=true to create it.`,
+        "datapack_search",
+      );
     }
   }
   return out;

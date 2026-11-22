@@ -1,3 +1,4 @@
+import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { z } from "zod";
@@ -58,6 +59,8 @@ export class MekoClient {
         await c.reconnect();
         return c;
       } catch (err) {
+        // A rejected key will not start working on retry.
+        if (isAuthError(err)) throw new MekoError("auth", `Meko rejected the API key (check MEKO_API_KEY): ${messageOf(err)}`, "connect");
         // Meko intermittently resets fresh connections; retry a bounded number of times.
         if (attempt >= MAX_ATTEMPTS) throw new MekoError("transport", `Could not connect to Meko MCP: ${messageOf(err)}`, "connect");
         await sleep(1000 * attempt);
@@ -105,6 +108,7 @@ export class MekoClient {
         break;
       } catch (err) {
         if (err instanceof MekoError) throw err;
+        if (isAuthError(err)) fail("auth", `Meko rejected the API key (check MEKO_API_KEY): ${messageOf(err)}`);
         if (NON_IDEMPOTENT_OPS.has(op)) {
           // Reconnect for the next call, but never resend: the write may already have been applied.
           await this.reconnect().catch(() => undefined);
@@ -193,6 +197,13 @@ function errorOf(payload: unknown): { code: string; message: string } | null {
 
 function describe(payload: unknown): string {
   return typeof payload === "string" ? payload.slice(0, 300) : JSON.stringify(payload).slice(0, 300);
+}
+
+/** 401/403 from the MCP endpoint: a bad or revoked key, never a transient failure. */
+function isAuthError(err: unknown): boolean {
+  if (err instanceof UnauthorizedError) return true;
+  const code = (err as { code?: unknown }).code;
+  return code === 401 || code === 403 || /\b(401|403)\b|unauthori[sz]ed|forbidden/i.test(err instanceof Error ? err.message : String(err));
 }
 
 function messageOf(err: unknown): string {

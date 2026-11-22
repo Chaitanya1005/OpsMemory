@@ -137,7 +137,8 @@ Copy `.env.example` to `.env.local` and fill in your own values. Never commit `.
 | `GEMINI_MODEL` | recommended | `gemini-3.8-flash` if unset | Set to `gemini-3.5-flash-lite` (as in `.env.example`). The fallback took 90–140s per call in testing. |
 | `LLM_PROVIDER` | no | `gemini` | Only `gemini` is implemented |
 | `GEMINI_THINKING_LEVEL` | no | `LOW` | `MINIMAL`, `LOW`, `MEDIUM` or `HIGH` |
-| `MEKO_DATAPACK_PREFIX` | no | `opsmemory` | Datapacks are `<prefix>-knowledge` and `<prefix>-investigator`, created automatically if missing |
+| `MEKO_DATAPACK_PREFIX` | no | `opsmemory` | Datapacks are `<prefix>-knowledge` and `<prefix>-investigator` |
+| `MEKO_CREATE_DATAPACKS` | no | `false` | Set to `true` once to create missing datapacks. Off by default, so a mistyped prefix fails with a clear error instead of starting with empty datapacks. |
 | `OPSMEMORY_DB` | no | `data/opsmemory.db` | SQLite file for run history and the event log |
 
 ```bash
@@ -148,7 +149,7 @@ GEMINI_MODEL=gemini-3.5-flash-lite
 
 ## Setup and run
 
-Prerequisites: Node.js 24 or newer (uses the built-in `node:sqlite`; tested on Node 26), a Meko account and a Gemini API key.
+Prerequisites: Node.js 22.13 or newer (24 recommended; uses the built-in `node:sqlite`, tested on Node 26), a Meko account and a Gemini API key.
 
 ```bash
 npm install
@@ -184,7 +185,8 @@ The lifecycle strip, Meko activity timeline and run history show only what the b
 | Command | Talks to | Datapacks / DB | Notes |
 |---|---|---|---|
 | `npm run typecheck` | nothing | — | TypeScript check |
-| `npm run test:approval` | nothing (in-memory Meko fake, **test-only**) | temporary SQLite | Approval state machine: verified-only `approved`, retry without duplicates, double-click, schema migration |
+| `npm test` | nothing (Meko and the LLM are faked, **test-only**) | temporary SQLite | Approval state machine (verified-only `approved`, retries without duplicates, double-click, migration), log analysis, the Investigator's integrity checks, datapack access policy, configuration, event feed |
+| `npm run lint` | nothing | — | Biome lint rules (React, Next.js, accessibility) |
 | `npm run e2e` | live Meko + Gemini | `opsmemory-e2e-*`, `data/e2e.db` | Full lifecycle; promotes into the **e2e** datapacks. `E2E_RUNS=1 npm run e2e` uses less quota. |
 | `npm run check:llm` / `bench:llm` | Gemini | — | Model availability, JSON output, latency |
 | `npm run spike:meko` | live Meko | `opsmemory-spike` | API exploration |
