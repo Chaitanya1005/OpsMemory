@@ -16,7 +16,12 @@ export class Store {
     // Databases created before the approval states existed have a narrower CHECK; rebuild the table once.
     const ddl = (this.db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'investigations'`).get() as { sql: string } | undefined)?.sql;
     if (ddl && !ddl.includes("needs_reconciliation")) {
-      this.db.exec(`ALTER TABLE investigations RENAME TO investigations_v1; ${INVESTIGATIONS_DDL}; INSERT INTO investigations SELECT * FROM investigations_v1; DROP TABLE investigations_v1;`);
+      const cols = "id, incident_ref, mode, status, incident_json, knowledge_json, result_json, decision_json, created_at, decided_at";
+      this.db.exec(`ALTER TABLE investigations RENAME TO investigations_v1; ${INVESTIGATIONS_DDL}; INSERT INTO investigations (${cols}) SELECT ${cols} FROM investigations_v1; DROP TABLE investigations_v1;`);
+    }
+    // Added with user-submitted incidents: which built-in sample (if any) an investigation ran.
+    if (ddl && !(this.db.prepare(`PRAGMA table_info(investigations)`).all() as Array<{ name: string }>).some((c) => c.name === "sample_id")) {
+      this.db.exec(`ALTER TABLE investigations ADD COLUMN sample_id TEXT`);
     }
     this.db.exec(`
       ${INVESTIGATIONS_DDL};
@@ -42,9 +47,9 @@ export class Store {
 
   insertInvestigation(row: InvestigationRow): void {
     this.db.prepare(
-      `INSERT INTO investigations (id, incident_ref, mode, status, incident_json, knowledge_json, result_json, decision_json, created_at, decided_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(row.id, row.incidentRef, row.mode, row.status, json(row.incident), json(row.knowledge), json(row.result), json(row.decision), row.createdAt, row.decidedAt);
+      `INSERT INTO investigations (id, incident_ref, mode, status, incident_json, knowledge_json, result_json, decision_json, created_at, decided_at, sample_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(row.id, row.incidentRef, row.mode, row.status, json(row.incident), json(row.knowledge), json(row.result), json(row.decision), row.createdAt, row.decidedAt, row.sampleId ?? null);
   }
 
   /**
@@ -126,6 +131,8 @@ export interface InvestigationRow {
   decision: unknown;
   createdAt: string;
   decidedAt: string | null;
+  /** The built-in sample this ran (e.g. "db-pool-1"); null for an incident the user submitted. */
+  sampleId?: string | null;
 }
 
 export interface StoredEvent {
@@ -154,7 +161,8 @@ const INVESTIGATIONS_DDL = `CREATE TABLE IF NOT EXISTS investigations (
   result_json TEXT,
   decision_json TEXT,
   created_at TEXT NOT NULL,
-  decided_at TEXT
+  decided_at TEXT,
+  sample_id TEXT
 )`;
 
 type EventRow = Record<string, string | number | null>;
@@ -172,7 +180,7 @@ function toInvestigation(r: Record<string, string | null>): InvestigationRow {
   return {
     id: String(r.id), incidentRef: String(r.incident_ref), mode: r.mode as "on" | "off", status: r.status as InvestigationRow["status"],
     incident: parse(r.incident_json ?? null), knowledge: parse(r.knowledge_json ?? null), result: parse(r.result_json ?? null),
-    decision: parse(r.decision_json ?? null), createdAt: String(r.created_at), decidedAt: r.decided_at ?? null,
+    decision: parse(r.decision_json ?? null), createdAt: String(r.created_at), decidedAt: r.decided_at ?? null, sampleId: r.sample_id ?? null,
   };
 }
 

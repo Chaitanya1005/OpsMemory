@@ -171,10 +171,16 @@ Open http://localhost:3000. For a production build, use `npm run build` and then
 
 `npm run dev` uses the **demo datapacks** (`opsmemory-knowledge`, `opsmemory-investigator`). Promoted memories cannot be deleted through Meko's API, so each approval is permanent. To practise, run `npm run dev:rehearse` instead. It uses the separate `opsmemory-e2e-*` datapacks, `data/ui-rehearsal.db` and port 3100.
 
-1. Select **db-pool-1** (checkout-api, connection pool exhaustion), Meko **ON**, and click **Investigate**. Nothing verified exists yet.
-2. In the approval panel, click **Apply engineer edit**. This applies the DBA-validated constraint: pool max 8, maxReplicas 10, and checkout-api's budget of 80 of the database's 200 connections. Then click **Approve & promote to Meko**. The panel shows **Approved, promoted and verified** only after the read-back succeeds.
-3. Select **db-pool-2** (orders-api, a different service on the same database), Meko **ON**. The Knowledge Agent recalls the verified resolution, and config values are sourced `history:K1`.
+1. Under **Sample incidents**, select sample 1 (checkout-api, connection pool exhaustion), Meko **ON**, and click **Investigate**. Nothing verified exists yet.
+2. In the approval panel, click **Apply sample correction**. This applies the DBA-validated constraint: pool max 8, maxReplicas 10, and checkout-api's budget of 80 of the database's 200 connections. Then click **Approve & promote to Meko**. The panel shows **Approved, promoted and verified** only after the read-back succeeds.
+3. Select sample 2 (orders-api, a different service on the same database), Meko **ON**. The Knowledge Agent recalls the verified resolution, and config values are sourced `history:K1`.
 4. Click **Run with Meko OFF** in the comparison panel. The OFF run makes zero Meko calls, its values are assumptions, and the database limit is an open question.
+
+### Investigating your own incident
+
+Choose **Your own incident** and fill in a title, a service name, a severity, optionally what you are seeing, and the logs. Logs are limited to 50,000 characters and 1,500 lines. Lines shaped like `<ISO time> <LEVEL> <component> <message>` are grouped into error signatures; other lines (stack traces, plain text) are still read by the model. The comparison panel re-runs the same stored incident in the other mode.
+
+Approvals take an optional **Approved by** name or role, which is written into the shared memory text. The **Apply sample correction** button appears only for the built-in samples: it is the scripted DBA input of the demo story, not a product feature.
 
 The lifecycle strip, Meko activity timeline and run history show only what the backend recorded.
 

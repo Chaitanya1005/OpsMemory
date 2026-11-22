@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApprovalPanel } from "./ApprovalPanel";
 import { Comparison } from "./Comparison";
-import { IncidentPanel } from "./IncidentPanel";
+import { EMPTY_DRAFT, IncidentPanel, type IncidentDraft, type IncidentSource } from "./IncidentPanel";
 import { InvestigationView } from "./InvestigationView";
 import { Lifecycle } from "./Lifecycle";
 import { RecalledMemory } from "./RecalledMemory";
@@ -13,7 +13,8 @@ import { isComplete, type ApiError, type Investigation, type Scenario, type Stat
 import { Chip, ErrorBox, Mono, Spinner, fmtMs } from "./ui";
 
 export interface RunningState {
-  scenarioId: string;
+  /** The service under investigation, for the running card. */
+  service: string;
   mode: "on" | "off";
   startedAt: string;
 }
@@ -31,6 +32,8 @@ export function Dashboard() {
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [events, setEvents] = useState<StoredEvent[]>([]);
   const [scenarioId, setScenarioId] = useState("db-pool-1");
+  const [source, setSource] = useState<IncidentSource>("sample");
+  const [draft, setDraft] = useState<IncidentDraft>(EMPTY_DRAFT);
   const [mode, setMode] = useState<"on" | "off">("on");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [running, setRunning] = useState<RunningState | null>(null);
@@ -90,11 +93,13 @@ export function Dashboard() {
     [selected, investigations],
   );
 
-  const investigate = async (opts: { scenarioId: string; mode: "on" | "off"; incidentRef?: string }) => {
+  /** One of sampleId (a built-in sample), incident (the user's own) or rerunOf (same incident, other mode). */
+  const investigate = async (opts: { mode: "on" | "off"; service: string; sampleId?: string; incident?: IncidentDraft; rerunOf?: string }) => {
     setError(null);
-    setRunning({ scenarioId: opts.scenarioId, mode: opts.mode, startedAt: new Date().toISOString() });
+    setRunning({ service: opts.service, mode: opts.mode, startedAt: new Date().toISOString() });
     try {
-      const rec = await api<Investigation>("/api/investigations", { method: "POST", body: JSON.stringify(opts) });
+      const { service: _service, ...body } = opts;
+      const rec = await api<Investigation>("/api/investigations", { method: "POST", body: JSON.stringify(body) });
       await refreshInvestigations();
       setSelectedId(rec.id);
     } catch (err) {
@@ -135,7 +140,7 @@ export function Dashboard() {
   };
 
   const scenario = scenarios.find((s) => s.id === scenarioId) ?? null;
-  const selectedScenario = selected ? scenarios.find((s) => s.title === selected.incident.title) ?? null : null;
+  const selectedScenario = selected?.sampleId ? scenarios.find((s) => s.id === selected.sampleId) ?? null : null;
 
   return (
     <div className="mx-auto max-w-[1440px] px-4 pb-16 pt-6 sm:px-6 lg:px-8">
@@ -176,10 +181,18 @@ export function Dashboard() {
             scenarios={scenarios}
             scenario={scenario}
             onScenario={setScenarioId}
+            source={source}
+            onSource={setSource}
+            draft={draft}
+            onDraft={setDraft}
             mode={mode}
             onMode={setMode}
             running={running}
-            onInvestigate={() => investigate({ scenarioId, mode })}
+            onInvestigate={() =>
+              source === "sample"
+                ? investigate({ mode, sampleId: scenarioId, service: scenario?.service ?? "" })
+                : investigate({ mode, incident: draft, service: draft.service.trim() })
+            }
           />
           <Timeline events={events} selected={selected} running={running} />
           <RunHistory investigations={investigations} selectedId={selectedId} onSelect={setSelectedId} />
@@ -189,11 +202,11 @@ export function Dashboard() {
           {!selected && !running && (
             <div className="grid place-items-center rounded-xl border border-dashed border-line px-6 py-16 text-center">
               <div className="max-w-md text-sm text-ink-2">
-                Pick an incident and run an investigation. With Meko ON, the Knowledge Agent recalls verified resolutions before the Investigator reasons; with Meko OFF it works from the current logs alone.
+                Pick a sample incident or paste your own logs, then investigate. With Meko ON, the Knowledge Agent recalls verified resolutions before the Investigator reasons; with Meko OFF it works from the current logs alone.
               </div>
             </div>
           )}
-          {running && <RunningCard running={running} scenario={scenarios.find((x) => x.id === running.scenarioId) ?? null} events={events} />}
+          {running && <RunningCard running={running} events={events} />}
           {selected && !running && (!isComplete(selected) ? (
                 <ErrorBox title={`Investigation ${selected.id} failed`}>{(selected.result as { error: string }).error}</ErrorBox>
               ) : (
@@ -211,7 +224,7 @@ export function Dashboard() {
                     selected={selected}
                     counterpart={counterpart}
                     running={running}
-                    onRunOther={() => selectedScenario && investigate({ scenarioId: selectedScenario.id, mode: selected.mode === "on" ? "off" : "on", incidentRef: selected.incidentRef })}
+                    onRunOther={() => investigate({ rerunOf: selected.id, mode: selected.mode === "on" ? "off" : "on", service: selected.incident.service })}
                   />
                 </>
               ))}
@@ -222,14 +235,14 @@ export function Dashboard() {
 }
 
 /** Shown while an investigation runs, so the previous result is never mistaken for the new one. */
-function RunningCard({ running, scenario, events }: { running: RunningState; scenario: Scenario | null; events: StoredEvent[] }) {
+function RunningCard({ running, events }: { running: RunningState; events: StoredEvent[] }) {
   const live = events.filter((e) => e.ts >= running.startedAt);
   const last = live.at(-1);
   return (
     <section className="rounded-xl border border-line-strong bg-surface px-5 py-6">
       <div className="flex items-center gap-3">
         <Spinner />
-        <h2 className="text-[15px] font-semibold text-ink">Investigating{scenario ? ` ${scenario.service}` : ""} with Meko {running.mode.toUpperCase()}</h2>
+        <h2 className="text-[15px] font-semibold text-ink">Investigating{running.service ? ` ${running.service}` : ""} with Meko {running.mode.toUpperCase()}</h2>
       </div>
       <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
         {running.mode === "on"

@@ -77,7 +77,7 @@ export class OpsMemory {
     return { meko: this.mekoClient, datapacks: this.datapacks! };
   }
 
-  async investigate(input: IncidentInput, mode: MekoMode, opts: { incidentRef?: string } = {}): Promise<InvestigationRecord> {
+  async investigate(input: IncidentInput, mode: MekoMode, opts: { incidentRef?: string; sampleId?: string | null } = {}): Promise<InvestigationRecord> {
     // Only the incident fields reach agents and storage (scenario fixtures such as approvalEdit never do).
     const incident: IncidentInput = { title: input.title, service: input.service, severity: input.severity, description: input.description, logs: input.logs };
     const id = `inv_${randomBytes(4).toString("hex")}`;
@@ -113,13 +113,13 @@ export class OpsMemory {
 
       const result: InvestigationResult = { analysis, outcome, mekoWrites, timings: { knowledgeMs, investigatorMs, totalMs: Date.now() - started } };
       this.store.insertInvestigation({
-        id, incidentRef, mode, status: "proposed", incident, knowledge, result, decision: null, createdAt: new Date().toISOString(), decidedAt: null,
+        id, incidentRef, mode, status: "proposed", incident, knowledge, result, decision: null, createdAt: new Date().toISOString(), decidedAt: null, sampleId: opts.sampleId ?? null,
       });
       return { id, incidentRef, mode, status: "proposed", incident, knowledge, result, mekoCalls: this.store.events(id).length };
     } catch (err) {
       this.store.insertInvestigation({
         id, incidentRef, mode, status: "failed", incident, knowledge: null,
-        result: { error: err instanceof Error ? err.message : String(err) }, decision: null, createdAt: new Date().toISOString(), decidedAt: null,
+        result: { error: err instanceof Error ? err.message : String(err) }, decision: null, createdAt: new Date().toISOString(), decidedAt: null, sampleId: opts.sampleId ?? null,
       });
       throw err;
     } finally {

@@ -16,6 +16,8 @@ export function ApprovalPanel({ investigation, scenario, busy, onApprove, onReje
   const [rootCause, setRootCause] = useState("");
   const [fix, setFix] = useState("");
   const [notes, setNotes] = useState("");
+  // Not reset per investigation: it is usually the same person approving.
+  const [approvedBy, setApprovedBy] = useState("");
   const [reason, setReason] = useState("");
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset only when a different investigation is selected, not when the same one refreshes.
@@ -48,6 +50,7 @@ export function ApprovalPanel({ investigation, scenario, busy, onApprove, onReje
     ...(rootCause.trim() !== inv.rootCause.statement ? { rootCause } : {}),
     ...(fix.trim() !== proposedFix ? { fix } : {}),
     ...(notes.trim() ? { notes } : {}),
+    ...(approvedBy.trim() ? { approvedBy } : {}),
   });
 
   return (
@@ -57,13 +60,15 @@ export function ApprovalPanel({ investigation, scenario, busy, onApprove, onReje
       </p>
       {edit && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface-2 px-3.5 py-2.5">
-          <span className="text-[12.5px] text-ink-2">This scenario includes the on-call engineer&apos;s DBA-validated correction.</span>
+          <span className="text-[12.5px] text-ink-2">
+            Sample only: in this scripted story, a DBA gave the on-call engineer the connection budget the logs never show.
+          </span>
           <button type="button"
             onClick={() => { setFix(edit.fix); setNotes(edit.notes); }}
             disabled={disabled}
             className="rounded-md border border-line-strong px-3 py-1.5 text-[12.5px] font-medium text-ink hover:bg-surface-3 disabled:opacity-50"
           >
-            Apply engineer edit
+            Apply sample correction
           </button>
         </div>
       )}
@@ -71,6 +76,19 @@ export function ApprovalPanel({ investigation, scenario, busy, onApprove, onReje
         <Field label="Root cause" value={rootCause} onChange={setRootCause} rows={3} disabled={disabled} />
         <Field label="Verified fix" value={fix} onChange={setFix} rows={3} disabled={disabled} />
         <Field label="Resolution notes" value={notes} onChange={setNotes} rows={3} disabled={disabled} placeholder="Constraints, conditions and context future responders need" />
+        <div>
+          <label htmlFor={`approved-by-${investigation.id}`} className="mb-1.5 block text-[12px] font-medium text-ink-2">Approved by (optional)</label>
+          <input
+            id={`approved-by-${investigation.id}`}
+            value={approvedBy}
+            onChange={(e) => setApprovedBy(e.target.value)}
+            maxLength={80}
+            disabled={disabled}
+            placeholder="Name or role, e.g. on-call SRE"
+            className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-[13px] text-ink placeholder:text-ink-3 focus:border-line-strong focus:outline-none"
+          />
+          <p className="mt-1 text-[12px] text-ink-3">Written into the shared knowledge, which every visitor can read. A role is enough.</p>
+        </div>
       </div>
       <div className="mt-4 flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-end">
         <button type="button"
@@ -128,7 +146,8 @@ function Approved({ d }: { d: ApprovalDecision }) {
       action={<Chip tone={d.retrievableAfterPromotion ? "good" : "critical"} icon={d.retrievableAfterPromotion ? "✓" : "!"}>{d.retrievableAfterPromotion ? "Verified knowledge in Meko" : "Not found on read-back"}</Chip>}
     >
       <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-[13px] sm:grid-cols-[auto_1fr]">
-        <dt className="text-ink-3">Approved</dt><dd className="text-ink-2">{new Date(d.approvedAt).toLocaleString()}{d.edited ? " · with engineer edits" : ""}</dd>
+        <dt className="text-ink-3">Approved</dt>
+        <dd className="text-ink-2">{new Date(d.approvedAt).toLocaleString()}{d.approvedBy ? ` · by ${d.approvedBy}` : ""}{d.edited ? " · with engineer edits" : ""}</dd>
         <dt className="text-ink-3">Memory ID</dt><dd className="break-all text-ink-2"><Mono>{d.memoryIds.join(", ")}</Mono></dd>
         <dt className="text-ink-3">Promotion</dt>
         <dd className="flex flex-wrap gap-1.5">

@@ -104,7 +104,8 @@ async function expectFailure(p: Promise<unknown>): Promise<ApprovalFailure> {
 
 test("happy path ends approved and verified; repeating it writes nothing", async () => {
   const { app, fake, status } = setup("happy");
-  const d = await app.approve("inv_test");
+  const d = await app.approve("inv_test", { approvedBy: "on-call SRE" });
+  assert.match(d.storedText.join(" "), /approved by on-call SRE at /);
   assert.equal(status(), "approved");
   assert.ok(d.retrievableAfterPromotion && d.promotionConfirmed);
   const again = await app.approve("inv_test");

@@ -32,7 +32,7 @@ async function main() {
         const scenario = getScenario(args[0] ?? "");
         const mode = (flag(args, "meko") ?? "on") as "on" | "off";
         if (mode !== "on" && mode !== "off") throw new Error("--meko must be on or off");
-        const rec = await app.investigate(scenario, mode, { incidentRef: flag(args, "ref") });
+        const rec = await app.investigate(scenario, mode, { incidentRef: flag(args, "ref"), sampleId: scenario.id });
         printInvestigation(rec);
         console.log("\n   Meko calls for this investigation:");
         printEvents(app.store.events(rec.id));

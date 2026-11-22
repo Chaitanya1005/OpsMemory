@@ -21,6 +21,8 @@ export interface ApprovalDecision {
   rootCause: string;
   fix: string;
   notes: string | null;
+  /** Name or role the approver gave; it is written into the shared memory text. */
+  approvedBy: string | null;
   edited: boolean;
   /** Approval conversation in the knowledge datapack; memories written in it carry its id. */
   conversationId: string | null;
@@ -47,7 +49,7 @@ export class ApprovalFailure extends Error {
   }
 }
 
-export type ApprovalEdits = { rootCause?: string; fix?: string; notes?: string };
+export type ApprovalEdits = { rootCause?: string; fix?: string; notes?: string; approvedBy?: string };
 
 /** What the approval needs from the workflow: state, a Meko connection, and event attribution. */
 export interface ApprovalContext {
@@ -101,7 +103,7 @@ export async function approveInvestigation(ctx: ApprovalContext, id: string, edi
     ? { ...prior, status: "approving", attempts: prior.attempts + 1, attemptStartedAt: now, failure: null }
     : {
         status: "approving", approvedAt: now, rootCause: edits.rootCause ?? inv.rootCause.statement, fix: edits.fix ?? inv.recommendedFix.immediate.join("; "),
-        notes: edits.notes ?? null, edited: Boolean(edits.rootCause || edits.fix), conversationId: null, storedText: [], memoryIds: [],
+        notes: edits.notes ?? null, approvedBy: edits.approvedBy ?? null, edited: Boolean(edits.rootCause || edits.fix), conversationId: null, storedText: [], memoryIds: [],
         promotion: { inserted: [], updated: [], notFound: [] }, promotionConfirmed: false, retrievableAfterPromotion: false,
         verifiedAt: null, attempts: 1, attemptStartedAt: now, failure: null,
       };
@@ -159,7 +161,7 @@ export async function approveInvestigation(ctx: ApprovalContext, id: string, edi
 
     if (d.memoryIds.length === 0) {
       // Approval facts go in the text itself: memory metadata is dropped on promotion (FRICTION_LOG #6).
-      const text = resolutionText(row.incidentRef, incident, d.rootCause, d.fix, inv, d.approvedAt, d.notes ?? undefined);
+      const text = resolutionText(row.incidentRef, incident, d, inv);
       const added = await step("memory_add", () => meko.call("engineer", "memory_add", {
         text, agent_id: APPROVALS_AGENT_ID, conversation_id: conversationId, datapack_id: datapacks.knowledge,
         metadata: JSON.stringify({ kind: "resolution", status: "approved", incident_ref: row.incidentRef, approved_at: d.approvedAt }),
@@ -212,12 +214,14 @@ async function findApprovalMemories(meko: MekoClient, datapackId: string, conver
   };
 }
 
-function resolutionText(ref: string, incident: IncidentInput, rootCause: string, fix: string, inv: Investigation, approvedAt: string, notes?: string): string {
+function resolutionText(ref: string, incident: IncidentInput, d: ApprovalDecision, inv: Investigation): string {
+  // Records made before approvers could give a name have no approvedBy.
+  const approver = d.approvedBy ?? "an engineer";
   return [
-    `Verified resolution for incident ${ref} on ${incident.service} (${incident.title}), approved by the on-call engineer at ${approvedAt}.`,
-    `Root cause: ${rootCause}`,
-    `Fix: ${fix}`,
+    `Verified resolution for incident ${ref} on ${incident.service} (${incident.title}), approved by ${approver} at ${d.approvedAt}.`,
+    `Root cause: ${d.rootCause}`,
+    `Fix: ${d.fix}`,
     `Applies when: ${inv.appliesWhen}`,
-    notes ? `Engineer notes: ${notes}` : "",
+    d.notes ? `Engineer notes: ${d.notes}` : "",
   ].filter(Boolean).join(" ");
 }

@@ -74,7 +74,7 @@ async function main() {
 
     // 1. First incident, Meko ON.
     const scenario1 = getScenario("db-pool-1");
-    const first = await app.investigate(scenario1, "on");
+    const first = await app.investigate(scenario1, "on", { sampleId: scenario1.id });
     printInvestigation(first);
     const firstVerified = first.knowledge?.retrieved.filter((i) => i.kind === "verified_resolution") ?? [];
     record("1. First incident investigated (Meko ON)", priorVerified === 0 ? firstVerified.length === 0 : "warn",
@@ -94,7 +94,7 @@ async function main() {
     let incidentRef: string | undefined;
     for (let i = 0; i < RUNS; i++) {
       for (const mode of ["on", "off"] as const) {
-        const rec = await app.investigate(scenario2, mode, { incidentRef });
+        const rec = await app.investigate(scenario2, mode, { incidentRef, sampleId: scenario2.id });
         incidentRef ??= rec.incidentRef;
         runs.push({ rec, m: measure(rec, decision) });
         if (i === 0) printInvestigation(rec);
