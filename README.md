@@ -167,6 +167,8 @@ npm run dev
 
 Open http://localhost:3000. For a production build, use `npm run build` and then `npm start`.
 
+**Deploying.** The repo includes a `Dockerfile` and `railway.json`. See [docs/DEPLOY.md](docs/DEPLOY.md) for Railway setup: a volume at `/data`, the variables, and the `/api/health` check.
+
 ## Demo script
 
 `npm run dev` uses the **demo datapacks** (`opsmemory-knowledge`, `opsmemory-investigator`). Promoted memories cannot be deleted through Meko's API, so each approval is permanent. To practise, run `npm run dev:rehearse` instead. It uses the separate `opsmemory-e2e-*` datapacks, `data/ui-rehearsal.db` and port 3100.
