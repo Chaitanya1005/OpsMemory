@@ -162,6 +162,11 @@ function IncidentForm({ draft, onDraft, disabled }: { draft: IncidentDraft; onDr
   const input = "w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-[13px] text-ink placeholder:text-ink-3 focus:border-line-strong focus:outline-none disabled:opacity-60";
   return (
     <div className="mt-3 space-y-3">
+      <div className="rounded-lg border px-3.5 py-2.5 text-[12px] leading-relaxed text-ink-2" style={{ borderColor: "color-mix(in srgb, var(--warning) 45%, transparent)", background: "color-mix(in srgb, var(--warning) 8%, transparent)" }}>
+        <span className="font-semibold text-ink">Public sandbox.</span> What you submit is sent to Google Gemini for analysis. With Meko ON, the title,
+        description and the agent&apos;s finding are stored in shared memory that every visitor can see. Don&apos;t paste real production data. Emails, IP
+        addresses, keys, tokens and passwords are redacted on the server before anything is analysed or stored; that is best effort, not a guarantee.
+      </div>
       <Field label="Title" htmlFor={`${id}-title`}>
         <input id={`${id}-title`} className={input} value={draft.title} maxLength={INCIDENT_LIMITS.title} disabled={disabled} placeholder="Payments API timing out after deploy"
           onChange={(e) => set("title", e.target.value)} />

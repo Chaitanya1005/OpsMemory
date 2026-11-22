@@ -180,7 +180,7 @@ Open http://localhost:3000. For a production build, use `npm run build` and then
 
 Choose **Your own incident** and fill in a title, a service name, a severity, optionally what you are seeing, and the logs. Logs are limited to 50,000 characters and 1,500 lines. Lines shaped like `<ISO time> <LEVEL> <component> <message>` are grouped into error signatures; other lines (stack traces, plain text) are still read by the model. The comparison panel re-runs the same stored incident in the other mode.
 
-Approvals take an optional **Approved by** name or role, which is written into the shared memory text. The **Apply sample correction** button appears only for the built-in samples: it is the scripted DBA input of the demo story, not a product feature.
+Everything you submit is redacted on the server first (see Known limitations), and the result shows what was replaced. Approvals take an optional **Approved by** name or role, which is written into the shared memory text. The **Apply sample correction** button appears only for the built-in samples: it is the scripted DBA input of the demo story, not a product feature.
 
 The lifecycle strip, Meko activity timeline and run history show only what the backend recorded.
 
@@ -220,7 +220,9 @@ Details are in [docs/MEKO_USAGE.md](docs/MEKO_USAGE.md).
 - **Investigator writes and rejections are not reconciled.** They are not retried after an ambiguous failure, so they may be missing, but they never duplicate. Their write IDs are not read back.
 - **Progress during a run is coarse.** The backend has no streaming, so the in-progress lifecycle shows only Meko events recorded so far. Reasoning is reported when the run returns.
 - **Single process.** Workflow calls are serialised in one Next.js server process.
-- **LLM output varies.** The ON/OFF difference is measured, not guaranteed. Retrieved memory text is passed to the LLM unfiltered (no prompt-injection hardening).
+- **LLM output varies.** The ON/OFF difference is measured, not guaranteed.
+- **Redaction is best effort.** Submitted incidents, approval edits and rejection reasons pass through `lib/redact.ts` before anything is analysed, stored or sent: emails, IPv4 addresses, private keys, JWTs, common API key formats, bearer tokens, credentials in URLs, `password=`/`token=`-style values and card numbers. Anything else, such as names or customer IDs, is not detected. The form warns visitors not to paste real data.
+- **Prompt injection is mitigated, not solved.** Logs, incident fields and recalled memories are wrapped in tags the system prompts declare as data, and text that would close a tag is escaped (`lib/agents/untrusted.ts`). The integrity checks still remove citations of history the model wasn't given and flag numbers that aren't in their cited source.
 - **Synthetic data only.** No real monitoring, cloud or remediation integrations exist.
 
 Meko product feedback from building this is in [docs/MEKO_FEATURE_PROPOSAL.md](docs/MEKO_FEATURE_PROPOSAL.md) and [docs/FRICTION_LOG.md](docs/FRICTION_LOG.md).

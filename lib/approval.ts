@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { IncidentInput } from "../data/scenarios";
 import type { Investigation } from "./agents/investigator";
 import { MekoError, type MekoClient } from "./meko/client";
+import { redactFields } from "./redact";
 import type { Datapacks } from "./meko/scopes";
 import type { InvestigationRow, Store } from "./store";
 import type { InvestigationResult } from "./workflow";
@@ -98,6 +99,8 @@ export async function approveInvestigation(ctx: ApprovalContext, id: string, edi
   const incident = row.incident as IncidentInput;
   const inv = (row.result as InvestigationResult).outcome.investigation;
   const now = new Date().toISOString();
+  // Engineer edits are written into shared knowledge, so they are redacted like a submitted incident.
+  edits = redactFields(edits).value;
   // A retry keeps the original content: memories may already hold it, and edits must not fork it.
   let d: ApprovalDecision = prior
     ? { ...prior, status: "approving", attempts: prior.attempts + 1, attemptStartedAt: now, failure: null }

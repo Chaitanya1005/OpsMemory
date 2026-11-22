@@ -10,6 +10,7 @@ import { getLlm, type LlmProvider } from "./llm";
 import { MekoClient, MekoError } from "./meko/client";
 import { MekoEventLog } from "./meko/events";
 import { resolveDatapacks, scopePolicy, type Datapacks } from "./meko/scopes";
+import { redact, redactFields, type Redacted } from "./redact";
 import { Store, type InvestigationRow } from "./store";
 
 export { ApprovalFailure, type ApprovalDecision, type ApprovalStage, type ApprovalStatus } from "./approval";
@@ -22,6 +23,8 @@ export interface InvestigationResult {
   /** What the Investigator wrote to Meko (ON only), or the write error. */
   mekoWrites: { conversationId: string; findingMemoryIds: string[] } | { error: string } | null;
   timings: { knowledgeMs: number; investigatorMs: number; totalMs: number };
+  /** Secrets and personal data replaced in the incident before anything used it (absent on older records). */
+  redactions?: Redacted["counts"];
 }
 
 export interface InvestigationRecord {
@@ -78,8 +81,11 @@ export class OpsMemory {
   }
 
   async investigate(input: IncidentInput, mode: MekoMode, opts: { incidentRef?: string; sampleId?: string | null } = {}): Promise<InvestigationRecord> {
-    // Only the incident fields reach agents and storage (scenario fixtures such as approvalEdit never do).
-    const incident: IncidentInput = { title: input.title, service: input.service, severity: input.severity, description: input.description, logs: input.logs };
+    // Only the incident fields reach agents and storage (scenario fixtures such as approvalEdit never do),
+    // and only after secrets and personal data are redacted: the raw text is never stored or sent anywhere.
+    const { value: incident, counts: redactions } = redactFields<IncidentInput>({
+      title: input.title, service: input.service, severity: input.severity, description: input.description, logs: input.logs,
+    });
     const id = `inv_${randomBytes(4).toString("hex")}`;
     const incidentRef = opts.incidentRef ?? newIncidentRef();
     const started = Date.now();
@@ -111,7 +117,7 @@ export class OpsMemory {
         }
       }
 
-      const result: InvestigationResult = { analysis, outcome, mekoWrites, timings: { knowledgeMs, investigatorMs, totalMs: Date.now() - started } };
+      const result: InvestigationResult = { analysis, outcome, mekoWrites, timings: { knowledgeMs, investigatorMs, totalMs: Date.now() - started }, redactions };
       this.store.insertInvestigation({
         id, incidentRef, mode, status: "proposed", incident, knowledge, result, decision: null, createdAt: new Date().toISOString(), decidedAt: null, sampleId: opts.sampleId ?? null,
       });
@@ -178,8 +184,10 @@ export class OpsMemory {
   }
 
   /** Human rejection. With Meko ON, the rejected hypothesis is kept as an unverified observation. */
-  async reject(id: string, reason: string): Promise<RejectionDecision> {
+  async reject(id: string, rawReason: string): Promise<RejectionDecision> {
     const row = this.requireProposed(id);
+    // The reason is stored in Meko as an observation, so it is redacted like any submitted text.
+    const reason = redact(rawReason).text;
     const rejectedAt = new Date().toISOString();
     let observationMemoryIds: string[] = [];
     if (row.mode === "on") {

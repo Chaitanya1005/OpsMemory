@@ -5,6 +5,7 @@ import type { LlmProvider, LlmResult } from "../llm";
 import type { MekoClient } from "../meko/client";
 import type { Datapacks } from "../meko/scopes";
 import type { RetrievedItem } from "./knowledge";
+import { UNTRUSTED_RULE, fence } from "./untrusted";
 
 export const INVESTIGATOR_AGENT_ID = "opsmemory_investigator";
 
@@ -63,26 +64,26 @@ Rules:
 - List every concrete configuration value you recommend in configChanges and give its source:
   "current_evidence" if the value is stated in the incident, "history" (with its ref) if it comes from a historical item,
   or "assumption" if neither establishes it. If no source establishes a safe value, say so and add it to unresolvedQuestions.
-- confidence is your calibrated probability that the root cause statement is correct.`;
+- confidence is your calibrated probability that the root cause statement is correct.
+${UNTRUSTED_RULE}`;
 
 const NO_CONTEXT = "No historical context was retrieved.";
 
 /** Same template in both modes; only the historical-context section differs. */
 export function buildInvestigatorPrompt(incident: IncidentInput, analysis: LogAnalysis, context: Array<RetrievedItem & { why?: string }>): string {
   const history = context.length
-    ? context.map((c) => `${c.ref} [${c.kind === "verified_resolution" ? "VERIFIED resolution" : c.kind === "runbook" ? "RUNBOOK" : "UNVERIFIED observation"}] ${c.text}`).join("\n")
+    ? context
+        .map((c) => `${c.ref} [${c.kind === "verified_resolution" ? "VERIFIED resolution" : c.kind === "runbook" ? "RUNBOOK" : "UNVERIFIED observation"}]\n${fence("history_item", c.text, `ref="${c.ref}"`)}`)
+        .join("\n")
     : NO_CONTEXT;
   return `INCIDENT
-Service: ${incident.service}
-Severity: ${incident.severity}
-Title: ${incident.title}
-Description: ${incident.description}
+${fence("incident", `Service: ${incident.service}\nSeverity: ${incident.severity}\nTitle: ${incident.title}\nDescription: ${incident.description}`)}
 
 LOG ANALYSIS (signatures)
-${formatAnalysis(analysis)}
+${fence("log_analysis", formatAnalysis(analysis))}
 
 RAW LOGS
-${incident.logs}
+${fence("raw_logs", incident.logs)}
 
 HISTORICAL CONTEXT
 ${history}`;
