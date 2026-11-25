@@ -10,11 +10,17 @@ const BASIS = {
   inconclusive: { tone: "serious" as const, icon: "?", label: "Inconclusive" },
 };
 
+const REDACTION_LABEL: Record<string, string> = {
+  private_key: "private key", jwt: "JWT", api_key: "API key", bearer_token: "bearer token", secret_value: "secret value",
+  url_credentials: "URL credential", email: "email", ip: "IP address", card_number: "card number",
+};
+
 export function InvestigationView({ investigation, forgetting, onForget }: {
   investigation: Investigation; forgetting: string | null; onForget: (memoryId: string) => void;
 }) {
   if (!isComplete(investigation)) return null;
-  const { outcome, mekoWrites, timings } = investigation.result;
+  const { outcome, mekoWrites, timings, redactions } = investigation.result;
+  const redacted = Object.entries(redactions ?? {}).filter(([, n]) => n > 0);
   const inv = outcome.investigation;
   const basis = BASIS[inv.rootCause.basis];
 
@@ -102,6 +108,9 @@ export function InvestigationView({ investigation, forgetting, onForget }: {
         {outcome.integrityWarnings.length === 0
           ? <Chip tone="good" icon="✓">Traceability checks passed</Chip>
           : <Chip tone="critical" icon="!">{outcome.integrityWarnings.length} traceability warning{outcome.integrityWarnings.length > 1 ? "s" : ""}</Chip>}
+        {redacted.length > 0 && (
+          <Chip tone="warning" icon="▨">Redacted before analysis: {redacted.map(([kind, n]) => `${n} ${REDACTION_LABEL[kind] ?? kind}${n === 1 ? "" : "s"}`).join(", ")}</Chip>
+        )}
         {mekoWrites === null && <Chip icon="○">No Meko writes (OFF)</Chip>}
         {mekoWrites && "error" in mekoWrites && <Chip tone="critical" icon="✕">Meko write failed: {mekoWrites.error}</Chip>}
         {mekoWrites && "conversationId" in mekoWrites && <Chip tone="warning" icon="◌">Stored as unverified finding <Mono>{shortId(mekoWrites.findingMemoryIds[0])}</Mono></Chip>}

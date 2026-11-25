@@ -3,13 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test:approval": "tsx scripts/test-approval.ts",
-    "check:llm": "tsx --env-file=.env.local scripts/check-llm.ts",
-    "spike:meko": "tsx --env-file=.env.local scripts/spike-meko.ts",
-    "check:scopes": "tsx --env-file=.env.local scripts/check-scopes.ts",
-    "bench:llm": "tsx --env-file=.env.local scripts/bench-llm.ts",
+    "lint": "biome lint .",
+    "test": "tsx --test tests/*.test.ts",
+    "check:llm": "tsx --env-file=.env.local scripts/dev/check-llm.ts",
+    "spike:meko": "tsx --env-file=.env.local scripts/dev/spike-meko.ts",
+    "check:scopes": "tsx --env-file=.env.local scripts/dev/check-scopes.ts",
+    "bench:llm": "tsx --env-file=.env.local scripts/dev/bench-llm.ts",
     "ops": "tsx --env-file=.env.local scripts/ops.ts",
     "e2e": "tsx --env-file=.env.local scripts/e2e.ts",
     "dev": "next dev",
@@ -21,13 +25,14 @@
   "dependencies": {
     "@google/genai": "^2.32.0",
     "@modelcontextprotocol/sdk": "^1.32.2",
-    "next": "^16.4.3",
+    "next": "^16.4.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "server-only": "^0.0.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.6.8",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",

@@ -5,7 +5,7 @@
  *   npm run check:scopes
  */
 import { randomUUID } from "node:crypto";
-import { MekoClient, MekoError } from "../lib/meko/client";
+import { MekoClient, MekoError } from "../../lib/meko/client";
 
 const NAMES = { knowledge: "opsmemory-knowledge", investigator: "opsmemory-investigator", spike: "opsmemory-spike" } as const;
 const SPIKE_EXTRACTED_ID = "5d941418-f989-469b-b8e4-327950e1b5c0";

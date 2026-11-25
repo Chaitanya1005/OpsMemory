@@ -29,7 +29,7 @@ export function RunHistory({ investigations, selectedId, onSelect }: {
             const st = legacyUnverified ? STATUS.promotion_unverified : STATUS[i.status];
             return (
               <li key={i.id}>
-                <button
+                <button type="button"
                   onClick={() => onSelect(i.id)}
                   className={`w-full rounded-md px-2 py-2 text-left transition-colors ${i.id === selectedId ? "bg-surface-3" : "hover:bg-surface-2"}`}
                 >

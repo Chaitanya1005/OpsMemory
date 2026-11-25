@@ -24,6 +24,7 @@ export interface Status {
   datapackPrefix: string;
   datapacks: { knowledge: string; investigator: string };
   mekoConfigured: boolean;
+  llmConfigured: boolean;
 }
 
 export interface ApiError {

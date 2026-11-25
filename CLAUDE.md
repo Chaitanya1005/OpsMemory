@@ -17,4 +17,4 @@ Claude Code's own project memory lives in the Meko datapack **`opsmemory-build`*
 - The demo datapacks (`opsmemory-knowledge`, `opsmemory-investigator`) must stay clean before a demo: promotions cannot be undone via the API.
 - Test against `opsmemory-e2e-*`: run `npm run e2e`, `npm run dev:rehearse`, or set `MEKO_DATAPACK_PREFIX=opsmemory-e2e`.
 - Don't run `npm run ops approve` or `npm run check:scopes` against the demo datapacks.
-- `npm run test:approval` is offline and safe to run any time.
+- `npm test` is offline (Meko and the LLM are faked) and safe to run any time.

@@ -1,0 +1,11 @@
+# Never send secrets, local databases or build output into the image.
+.env*
+!.env.example
+data/*.db
+data/*.db-journal
+node_modules
+.next
+.git
+.github
+.claude
+*.tsbuildinfo

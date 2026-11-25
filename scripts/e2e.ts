@@ -74,7 +74,7 @@ async function main() {
 
     // 1. First incident, Meko ON.
     const scenario1 = getScenario("db-pool-1");
-    const first = await app.investigate(scenario1, "on");
+    const first = await app.investigate(scenario1, "on", { sampleId: scenario1.id });
     printInvestigation(first);
     const firstVerified = first.knowledge?.retrieved.filter((i) => i.kind === "verified_resolution") ?? [];
     record("1. First incident investigated (Meko ON)", priorVerified === 0 ? firstVerified.length === 0 : "warn",
@@ -94,7 +94,7 @@ async function main() {
     let incidentRef: string | undefined;
     for (let i = 0; i < RUNS; i++) {
       for (const mode of ["on", "off"] as const) {
-        const rec = await app.investigate(scenario2, mode, { incidentRef });
+        const rec = await app.investigate(scenario2, mode, { incidentRef, sampleId: scenario2.id });
         incidentRef ??= rec.incidentRef;
         runs.push({ rec, m: measure(rec, decision) });
         if (i === 0) printInvestigation(rec);
@@ -107,7 +107,10 @@ async function main() {
     console.log("\n================ RECALLED MEMORY AND ITS INFLUENCE (Meko ON) ================");
     on.forEach(({ rec }, i) => {
       const item = rec.knowledge?.retrieved.find((x) => x.source.memoryId && decision.memoryIds.includes(x.source.memoryId));
-      if (!item) return console.log(`run ${i + 1}: promoted memory NOT retrieved`);
+      if (!item) {
+        console.log(`run ${i + 1}: promoted memory NOT retrieved`);
+        return;
+      }
       if (i === 0) console.log(`memory ${item.source.memoryId} (${item.source.datapack}/${item.source.tool}):\n  "${item.text}"`);
       const used = rec.result.outcome.investigation.historicalContextUsed.find((h) => h.ref === item.ref);
       console.log(`run ${i + 1}: ${item.ref} judged relevant=${rec.knowledge!.relevant.some((r) => r.ref === item.ref)}; how used: ${used ? used.how : "not cited"}`);

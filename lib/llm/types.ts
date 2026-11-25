@@ -8,7 +8,6 @@ export interface LlmProvider {
   readonly id: string;
   readonly model: string;
   generateJson<T>(req: JsonRequest<T>): Promise<LlmResult<T>>;
-  callTools(req: ToolRequest): Promise<LlmResult<ToolCall[]>>;
 }
 
 export interface JsonRequest<T> {
@@ -17,24 +16,6 @@ export interface JsonRequest<T> {
   schema: z.ZodType<T>;
   /** Lower is more deterministic; agents default to 0.2. */
   temperature?: number;
-}
-
-export interface ToolSpec {
-  name: string;
-  description: string;
-  /** JSON Schema object describing the arguments. */
-  parameters: Record<string, unknown>;
-}
-
-export interface ToolRequest {
-  system: string;
-  prompt: string;
-  tools: ToolSpec[];
-}
-
-export interface ToolCall {
-  name: string;
-  args: Record<string, unknown>;
 }
 
 export interface LlmUsage {

@@ -58,6 +58,7 @@ function StageDot({ state }: { state: StageState }) {
       className={`grid size-4.5 shrink-0 place-items-center rounded-full border text-[10px] font-bold ${state === "active" ? "pulse-dot" : ""}`}
       style={{ borderColor: m.c, color: m.c }}
       title={m.label}
+      role="img"
       aria-label={m.label}
     >
       {m.icon}

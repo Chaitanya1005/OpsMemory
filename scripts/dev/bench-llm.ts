@@ -5,7 +5,7 @@
  */
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { z } from "zod";
-import { GeminiProvider } from "../lib/llm/gemini";
+import { GeminiProvider } from "../../lib/llm/gemini";
 
 const DEFAULT_MODELS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-lite-latest", "gemini-3.5-flash"];
 const Schema = z.object({ rootCause: z.string(), confidence: z.number().min(0).max(1) });

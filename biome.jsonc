@@ -1,0 +1,23 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.8/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": { "includes": ["**", "!data", "!next-env.d.ts", "!**/*.css"] },
+  // Formatting is left to editors; CI only enforces lint rules.
+  "formatter": { "enabled": false },
+  "assist": { "enabled": false },
+  "linter": {
+    "enabled": true,
+    "domains": { "next": "recommended", "react": "recommended" },
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        // tsconfig enables noUncheckedIndexedAccess; `!` marks indexes the code has already checked.
+        "noNonNullAssertion": "off"
+      },
+      "suspicious": {
+        // Lists render immutable server snapshots (evidence, questions) that are never reordered or edited.
+        "noArrayIndexKey": "off"
+      }
+    }
+  }
+}

@@ -1,9 +1,9 @@
 /**
- * Verifies the configured LLM provider: connectivity, schema-valid JSON
- * output, and function calling. Prints no secrets.
+ * Verifies the configured LLM provider: connectivity and schema-valid JSON
+ * output. Prints no secrets.
  */
 import { z } from "zod";
-import { getLlm } from "../lib/llm";
+import { getLlm } from "../../lib/llm";
 
 const Finding = z.object({
   finding: z.string(),
@@ -28,23 +28,6 @@ async function main() {
   console.log(`JSON OK  attempts=${json.attempts} latency=${json.latencyMs}ms tokens=${json.usage.inputTokens}/${json.usage.outputTokens}`);
   console.log(JSON.stringify(json.data, null, 2));
 
-  const tools = await llm.callTools({
-    system: "You investigate incidents. Use tools to look up history before answering.",
-    prompt: "Checkout API is timing out acquiring DB connections. Look up similar past incidents.",
-    tools: [
-      {
-        name: "search_incident_history",
-        description: "Search verified past incident resolutions.",
-        parameters: {
-          type: "object",
-          properties: { query: { type: "string" }, service: { type: "string" } },
-          required: ["query"],
-        },
-      },
-    ],
-  });
-  console.log(`TOOLS OK attempts=${tools.attempts} latency=${tools.latencyMs}ms calls=${JSON.stringify(tools.data)}`);
-  if (tools.data.length === 0) throw new Error("model returned no function call");
 }
 
 main().catch((err) => {

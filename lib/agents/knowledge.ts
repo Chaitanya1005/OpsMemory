@@ -5,6 +5,7 @@ import { formatAnalysis, type LogAnalysis } from "../analysis/logs";
 import type { LlmProvider } from "../llm";
 import type { MekoClient } from "../meko/client";
 import type { DatapackRole, Datapacks } from "../meko/scopes";
+import { UNTRUSTED_RULE, fence } from "./untrusted";
 
 export const KNOWLEDGE_AGENT_ID = "opsmemory_knowledge_agent";
 
@@ -62,7 +63,8 @@ Rules:
 - "verified_resolution" items were approved by a human engineer. "unverified_observation" items are earlier agent observations that no human has confirmed. "runbook" items are reference documents.
 - An item is relevant only if its conditions match the new incident's evidence. Similar wording alone is not enough.
 - Judge applicability by the failure mechanism, the item's stated "Applies when" conditions and shared infrastructure (for example the same database cluster), not by the service name. A verified resolution recorded for a different service is relevant when the same conditions hold, and its constraints may apply directly.
-- Explain each judgement in one sentence citing the matching evidence.`;
+- Explain each judgement in one sentence citing the matching evidence.
+${UNTRUSTED_RULE}`;
 
 /**
  * Retrieves historical context from Meko, then asks the model which items apply.
@@ -112,10 +114,10 @@ export async function runKnowledgeAgent(
     return { query, retrieved, relevant: [], rejected: [], summary: "Meko returned no historical context for this incident.", discardedRefs: [] };
   }
 
-  const items = retrieved.map((i) => `${i.ref} [${i.kind}] ${i.text}`).join("\n");
+  const items = retrieved.map((i) => `${i.ref} [${i.kind}]\n${fence("retrieved_item", i.text, `ref="${i.ref}"`)}`).join("\n");
   const res = await deps.llm.generateJson({
     system: SYSTEM,
-    prompt: `NEW INCIDENT\nService: ${incident.service}\nTitle: ${incident.title}\nDescription: ${incident.description}\n\nLOG ANALYSIS\n${formatAnalysis(analysis)}\n\nRETRIEVED ITEMS\n${items}\n\nAssess every item by its ref.`,
+    prompt: `NEW INCIDENT\n${fence("incident", `Service: ${incident.service}\nTitle: ${incident.title}\nDescription: ${incident.description}`)}\n\nLOG ANALYSIS\n${fence("log_analysis", formatAnalysis(analysis))}\n\nRETRIEVED ITEMS\n${items}\n\nAssess every item by its ref.`,
     schema: Assessment,
   });
 

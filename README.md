@@ -137,7 +137,8 @@ Copy `.env.example` to `.env.local` and fill in your own values. Never commit `.
 | `GEMINI_MODEL` | recommended | `gemini-3.8-flash` if unset | Set to `gemini-3.5-flash-lite` (as in `.env.example`). The fallback took 90–140s per call in testing. |
 | `LLM_PROVIDER` | no | `gemini` | Only `gemini` is implemented |
 | `GEMINI_THINKING_LEVEL` | no | `LOW` | `MINIMAL`, `LOW`, `MEDIUM` or `HIGH` |
-| `MEKO_DATAPACK_PREFIX` | no | `opsmemory` | Datapacks are `<prefix>-knowledge` and `<prefix>-investigator`, created automatically if missing |
+| `MEKO_DATAPACK_PREFIX` | no | `opsmemory` | Datapacks are `<prefix>-knowledge` and `<prefix>-investigator` |
+| `MEKO_CREATE_DATAPACKS` | no | `false` | Set to `true` once to create missing datapacks. Off by default, so a mistyped prefix fails with a clear error instead of starting with empty datapacks. |
 | `OPSMEMORY_DB` | no | `data/opsmemory.db` | SQLite file for run history and the event log |
 
 ```bash
@@ -148,7 +149,7 @@ GEMINI_MODEL=gemini-3.5-flash-lite
 
 ## Setup and run
 
-Prerequisites: Node.js 24 or newer (uses the built-in `node:sqlite`; tested on Node 26), a Meko account and a Gemini API key.
+Prerequisites: Node.js 22.13 or newer (24 recommended; uses the built-in `node:sqlite`, tested on Node 26), a Meko account and a Gemini API key.
 
 ```bash
 npm install
@@ -166,14 +167,22 @@ npm run dev
 
 Open http://localhost:3000. For a production build, use `npm run build` and then `npm start`.
 
+**Deploying.** The repo includes a `Dockerfile` and `railway.json`. See [docs/DEPLOY.md](docs/DEPLOY.md) for Railway setup: a volume at `/data`, the variables, and the `/api/health` check.
+
 ## Demo script
 
 `npm run dev` uses the **demo datapacks** (`opsmemory-knowledge`, `opsmemory-investigator`). Promoted memories cannot be deleted through Meko's API, so each approval is permanent. To practise, run `npm run dev:rehearse` instead. It uses the separate `opsmemory-e2e-*` datapacks, `data/ui-rehearsal.db` and port 3100.
 
-1. Select **db-pool-1** (checkout-api, connection pool exhaustion), Meko **ON**, and click **Investigate**. Nothing verified exists yet.
-2. In the approval panel, click **Apply engineer edit**. This applies the DBA-validated constraint: pool max 8, maxReplicas 10, and checkout-api's budget of 80 of the database's 200 connections. Then click **Approve & promote to Meko**. The panel shows **Approved, promoted and verified** only after the read-back succeeds.
-3. Select **db-pool-2** (orders-api, a different service on the same database), Meko **ON**. The Knowledge Agent recalls the verified resolution, and config values are sourced `history:K1`.
+1. Under **Sample incidents**, select sample 1 (checkout-api, connection pool exhaustion), Meko **ON**, and click **Investigate**. Nothing verified exists yet.
+2. In the approval panel, click **Apply sample correction**. This applies the DBA-validated constraint: pool max 8, maxReplicas 10, and checkout-api's budget of 80 of the database's 200 connections. Then click **Approve & promote to Meko**. The panel shows **Approved, promoted and verified** only after the read-back succeeds.
+3. Select sample 2 (orders-api, a different service on the same database), Meko **ON**. The Knowledge Agent recalls the verified resolution, and config values are sourced `history:K1`.
 4. Click **Run with Meko OFF** in the comparison panel. The OFF run makes zero Meko calls, its values are assumptions, and the database limit is an open question.
+
+### Investigating your own incident
+
+Choose **Your own incident** and fill in a title, a service name, a severity, optionally what you are seeing, and the logs. Logs are limited to 50,000 characters and 1,500 lines. Lines shaped like `<ISO time> <LEVEL> <component> <message>` are grouped into error signatures; other lines (stack traces, plain text) are still read by the model. The comparison panel re-runs the same stored incident in the other mode.
+
+Everything you submit is redacted on the server first (see Known limitations), and the result shows what was replaced. Approvals take an optional **Approved by** name or role, which is written into the shared memory text. The **Apply sample correction** button appears only for the built-in samples: it is the scripted DBA input of the demo story, not a product feature.
 
 The lifecycle strip, Meko activity timeline and run history show only what the backend recorded.
 
@@ -184,7 +193,8 @@ The lifecycle strip, Meko activity timeline and run history show only what the b
 | Command | Talks to | Datapacks / DB | Notes |
 |---|---|---|---|
 | `npm run typecheck` | nothing | — | TypeScript check |
-| `npm run test:approval` | nothing (in-memory Meko fake, **test-only**) | temporary SQLite | Approval state machine: verified-only `approved`, retry without duplicates, double-click, schema migration |
+| `npm test` | nothing (Meko and the LLM are faked, **test-only**) | temporary SQLite | Approval state machine (verified-only `approved`, retries without duplicates, double-click, migration), log analysis, the Investigator's integrity checks, datapack access policy, configuration, event feed |
+| `npm run lint` | nothing | — | Biome lint rules (React, Next.js, accessibility) |
 | `npm run e2e` | live Meko + Gemini | `opsmemory-e2e-*`, `data/e2e.db` | Full lifecycle; promotes into the **e2e** datapacks. `E2E_RUNS=1 npm run e2e` uses less quota. |
 | `npm run check:llm` / `bench:llm` | Gemini | — | Model availability, JSON output, latency |
 | `npm run spike:meko` | live Meko | `opsmemory-spike` | API exploration |
@@ -212,7 +222,9 @@ Details are in [docs/MEKO_USAGE.md](docs/MEKO_USAGE.md).
 - **Investigator writes and rejections are not reconciled.** They are not retried after an ambiguous failure, so they may be missing, but they never duplicate. Their write IDs are not read back.
 - **Progress during a run is coarse.** The backend has no streaming, so the in-progress lifecycle shows only Meko events recorded so far. Reasoning is reported when the run returns.
 - **Single process.** Workflow calls are serialised in one Next.js server process.
-- **LLM output varies.** The ON/OFF difference is measured, not guaranteed. Retrieved memory text is passed to the LLM unfiltered (no prompt-injection hardening).
+- **LLM output varies.** The ON/OFF difference is measured, not guaranteed.
+- **Redaction is best effort.** Submitted incidents, approval edits and rejection reasons pass through `lib/redact.ts` before anything is analysed, stored or sent: emails, IPv4 addresses, private keys, JWTs, common API key formats, bearer tokens, credentials in URLs, `password=`/`token=`-style values and card numbers. Anything else, such as names or customer IDs, is not detected. The form warns visitors not to paste real data.
+- **Prompt injection is mitigated, not solved.** Logs, incident fields and recalled memories are wrapped in tags the system prompts declare as data, and text that would close a tag is escaped (`lib/agents/untrusted.ts`). The integrity checks still remove citations of history the model wasn't given and flag numbers that aren't in their cited source.
 - **Synthetic data only.** No real monitoring, cloud or remediation integrations exist.
 
 Meko product feedback from building this is in [docs/MEKO_FEATURE_PROPOSAL.md](docs/MEKO_FEATURE_PROPOSAL.md) and [docs/FRICTION_LOG.md](docs/FRICTION_LOG.md).

@@ -6,8 +6,6 @@ import {
   type LlmProvider,
   type LlmResult,
   type LlmUsage,
-  type ToolCall,
-  type ToolRequest,
 } from "./types";
 
 const MAX_ATTEMPTS = 3;
@@ -65,36 +63,6 @@ export class GeminiProvider implements LlmProvider {
       return this.result(checked.data, res, started, attempt);
     }
     throw new LlmError("invalid_output", `No schema-valid JSON after ${MAX_ATTEMPTS} attempts: ${lastProblem}`, PROVIDER);
-  }
-
-  async callTools(req: ToolRequest): Promise<LlmResult<ToolCall[]>> {
-    const started = Date.now();
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      const res = await this.send(attempt, () =>
-        this.client.models.generateContent({
-          model: this.model,
-          contents: req.prompt,
-          config: {
-            systemInstruction: req.system,
-            temperature: 0,
-            thinkingConfig: { thinkingLevel: this.thinkingLevel },
-            tools: [
-              {
-                functionDeclarations: req.tools.map((t) => ({
-                  name: t.name,
-                  description: t.description,
-                  parametersJsonSchema: t.parameters,
-                })),
-              },
-            ],
-          },
-        }),
-      );
-      if (!res) continue;
-      const calls = (res.functionCalls ?? []).map((c) => ({ name: c.name ?? "", args: c.args ?? {} }));
-      return this.result(calls, res, started, attempt);
-    }
-    throw new LlmError("unavailable", `Gemini did not respond after ${MAX_ATTEMPTS} attempts`, PROVIDER);
   }
 
   /** Returns null when the attempt failed transiently and should be retried. */
